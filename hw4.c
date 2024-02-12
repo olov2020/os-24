@@ -5,7 +5,7 @@
 #include <sys/types.h>
 #include <sys/stat.h>
 
-#define BUFFER_SIZE 1024
+#define BUFFER_SIZE 64
 
 int main() {
     char input_file[256];
@@ -32,14 +32,24 @@ int main() {
 
     char buffer[BUFFER_SIZE];
     ssize_t bytes_read, bytes_written;
+    int total_bytes_written = 0;
 
     while ((bytes_read = read(input_fd, buffer, BUFFER_SIZE)) > 0) {
-        bytes_written = write(output_fd, buffer, bytes_read);
-        if (bytes_written == -1) {
-            perror("Error writing to output file");
-            close(input_fd);
-            close(output_fd);
-            return 1;
+        int bytes_to_write = bytes_read;
+        int offset = 0;
+
+        while (bytes_to_write > 0) {
+            bytes_written = write(output_fd, buffer + offset, bytes_to_write);
+            if (bytes_written == -1) {
+                perror("Error writing to output file");
+                close(input_fd);
+                close(output_fd);
+                return 1;
+            }
+
+            bytes_to_write -= bytes_written;
+            offset += bytes_written;
+            total_bytes_written += bytes_written;
         }
     }
 
@@ -53,7 +63,7 @@ int main() {
     close(input_fd);
     close(output_fd);
 
-    printf("Data copied successfully from %s to %s!\n", input_file, output_file);
+    printf("Data copied successfully from %s to %s! Total bytes written: %d\n", input_file, output_file, total_bytes_written);
 
     return 0;
 }
