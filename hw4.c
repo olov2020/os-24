@@ -7,14 +7,15 @@
 
 #define BUFFER_SIZE 1024
 
-int main(int argc, char* argv[]) {
-    if (argc != 3) {
-        fprintf(stderr, "Usage: %s <input_file> <output_file>\n", argv[0]);
-        return 1;
-    }
+int main() {
+    char input_file[256];
+    char output_file[256];
 
-    const char* input_file = argv[1];
-    const char* output_file = argv[2];
+    printf("Enter input file name: ");
+    scanf("%s", input_file);
+
+    printf("Enter output file name: ");
+    scanf("%s", output_file);
 
     int input_fd = open(input_file, O_RDONLY);
     if (input_fd == -1) {
@@ -52,7 +53,7 @@ int main(int argc, char* argv[]) {
     close(input_fd);
     close(output_fd);
 
-    printf("File copied successfully!\n");
+    printf("Data copied successfully from %s to %s!\n", input_file, output_file);
 
     return 0;
 }
