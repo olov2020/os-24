@@ -3,15 +3,26 @@
 #include <unistd.h>
 
 int transmitter_pid;
+int received_num = 0;
+int bit_count = 0;
 
 void sigusr1_handler(int signum) {
-    printf("Received 1\n");
+    received_num |= (1 << bit_count);
+    bit_count++;
+    if (bit_count == 32) {
+        printf("Received number: %d\n", received_num);
+        _exit(0); // Exit after receiving all bits
+    }
     kill(transmitter_pid, SIGUSR1);
 }
 
 void sigusr2_handler(int signum) {
-    printf("Received 0\n");
-    kill(transmitter_pid, SIGUSR2);
+    bit_count++;
+    if (bit_count == 32) {
+        printf("Received number: %d\n", received_num);
+        _exit(0); // Exit after receiving all bits
+    }
+    kill(transmitter_pid, SIGUSR1);
 }
 
 int main() {
