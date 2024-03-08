@@ -40,8 +40,6 @@ int main() {
     printf("Enter transmitter PID: ");
     scanf("%d", &transmitter_pid);
 
-    kill(transmitter_pid, SIGUSR1);
-
     while(1) {
         pause();
     }
