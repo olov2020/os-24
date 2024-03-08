@@ -38,7 +38,7 @@ int main() {
         pause(); // Wait for confirmation from the receiver
     }
 
-    printf("Transmission completed!\n");
+    printf("Transmission completed! %d\n", num);
     
     return 0;
 }
