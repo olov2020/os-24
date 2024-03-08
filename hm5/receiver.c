@@ -11,7 +11,7 @@ void sigusr1_handler(int signum) {
 
 void sigusr2_handler(int signum) {
     printf("Received 0\n");
-    kill(transmitter_pid, SIGUSR1);
+    kill(transmitter_pid, SIGUSR2);
 }
 
 int main() {
