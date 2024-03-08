@@ -35,6 +35,7 @@ int main() {
         } else {
             kill(receiver_pid, SIGUSR2);
         }
+        usleep(100000); // добавляем небольшую задержку для синхронизации
         pause();
     }
 
