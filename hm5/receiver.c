@@ -9,7 +9,7 @@ int bit_counter = 0;
 
 void sigusr1_handler(int signo) {
     // обработчик сигнала SIGUSR1
-    received_number |= (1 << bit_counter);
+    received_number |= (1 << (31 - bit_counter));
     bit_counter++;
     printf("Received bit 1\n");
     if (bit_counter < 32) {
