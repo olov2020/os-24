@@ -1,44 +1,42 @@
 #include <stdio.h>
+#include <stdlib.h>
 #include <signal.h>
 #include <unistd.h>
 
 int receiver_pid;
 
-void sigusr1_handler(int signum) {
-    printf("SIGUSR1 received, sending the next bit...\n");
-    kill(receiver_pid, SIGUSR2);
+void sigusr1_handler(int signo) {
+    // обработчик сигнала SIGUSR1
+    printf("Received ACK from receiver\n");
 }
 
-void sigusr2_handler(int signum) {
-    printf("SIGUSR2 received, sending the next bit...\n");
+void sigusr2_handler(int signo) {
+    // обработчик сигнала SIGUSR2
+    printf("Received NACK from receiver, resending last bit\n");
     kill(receiver_pid, SIGUSR1);
 }
 
 int main() {
-    printf("Transmitter PID: %d\n", getpid());
-    
-    printf("Enter the PID of the receiver: ");
-    scanf("%d", &receiver_pid);
-
     signal(SIGUSR1, sigusr1_handler);
     signal(SIGUSR2, sigusr2_handler);
 
-    int num;
-    printf("Enter an integer to transmit: ");
-    scanf("%d", &num);
+    printf("Transmitter PID: %d\n", getpid());
+    printf("Enter receiver PID: ");
+    scanf("%d", &receiver_pid);
 
-    // Transmit each bit
+    printf("Enter a decimal number to transmit: ");
+    int number;
+    scanf("%d", &number);
+
     for (int i = 31; i >= 0; i--) {
-        int bit = (num >> i) & 1;
+        int bit = (number >> i) & 1;
         if (bit == 1) {
             kill(receiver_pid, SIGUSR1);
         } else {
             kill(receiver_pid, SIGUSR2);
         }
-        pause(); // Wait for confirmation from the receiver
+        pause();
     }
 
-    printf("Transmission completed! %d\n", num);
-    
     return 0;
 }
