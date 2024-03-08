@@ -1,42 +1,50 @@
 #include <stdio.h>
+#include <stdlib.h>
 #include <signal.h>
 #include <unistd.h>
 
 int transmitter_pid;
-int received_num = 0;
-int bit_count = 0;
+int received_number = 0;
+int bit_counter = 0;
 
-void sigusr1_handler(int signum) {
-    received_num |= (1 << bit_count);
-    bit_count++;
-    if (bit_count == 32) {
-        printf("Received number: %d\n", received_num);
-        _exit(0); // Exit after receiving all bits
+void sigusr1_handler(int signo) {
+    // обработчик сигнала SIGUSR1
+    received_number |= (1 << bit_counter);
+    bit_counter++;
+    printf("Received bit 1\n");
+    if (bit_counter < 32) {
+        kill(transmitter_pid, SIGUSR1);
+    } else {
+        printf("Received number: %d\n", received_number);
+        exit(0);
     }
-    kill(transmitter_pid, SIGUSR1);
 }
 
-void sigusr2_handler(int signum) {
-    bit_count++;
-    if (bit_count == 32) {
-        printf("Received number: %d\n", received_num);
-        _exit(0); // Exit after receiving all bits
+void sigusr2_handler(int signo) {
+    // обработчик сигнала SIGUSR2
+    printf("Received bit 0\n");
+    bit_counter++;
+    if (bit_counter < 32) {
+        kill(transmitter_pid, SIGUSR1);
+    } else {
+        printf("Received number: %d\n", received_number);
+        exit(0);
     }
-    kill(transmitter_pid, SIGUSR1);
 }
 
 int main() {
-    printf("Receiver PID: %d\n", getpid());
-    
-    printf("Enter the PID of the transmitter: ");
-    scanf("%d", &transmitter_pid);
-
     signal(SIGUSR1, sigusr1_handler);
     signal(SIGUSR2, sigusr2_handler);
 
-    pause(); // Wait for the first bit
+    printf("Receiver PID: %d\n", getpid());
+    printf("Enter transmitter PID: ");
+    scanf("%d", &transmitter_pid);
 
-    printf("Transmission completed!\n");
+    kill(transmitter_pid, SIGUSR1);
+
+    while(1) {
+        pause();
+    }
 
     return 0;
 }
