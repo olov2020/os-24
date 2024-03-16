@@ -13,10 +13,12 @@ int main() {
     pid_t pid1, pid2;
 
     printf("Введите путь к файлу ввода: ");
-    scanf("%s", input_filename);
+    fgets(input_filename, sizeof(input_filename), stdin);
+    input_filename[strcspn(input_filename, "\n")] = '\0'; // Удаляем символ новой строки
 
     printf("Введите путь к файлу вывода: ");
-    scanf("%s", output_filename);
+    fgets(output_filename, sizeof(output_filename), stdin);
+    output_filename[strcspn(output_filename, "\n")] = '\0'; // Удаляем символ новой строки
 
     if (pipe(fd1) == -1 || pipe(fd2) == -1) {
         perror("Ошибка создания канала");
