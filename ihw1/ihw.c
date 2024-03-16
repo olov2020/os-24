@@ -53,7 +53,7 @@ int main() {
             close(fd2[0]); // Закрываем чтение
             dup2(fd1[0], STDIN_FILENO); // Перенаправляем ввод из канала
             dup2(fd2[1], STDOUT_FILENO); // Перенаправляем вывод в канал
-            execl("gcc solution.c -0 solution", "gcc solution.c -0 solution", NULL); // Запускаем программу для обработки данных
+            execl("solution", "solution", NULL); // Запускаем программу для обработки данных
 
             perror("Ошибка при запуске второго процесса");
             exit(EXIT_FAILURE);
