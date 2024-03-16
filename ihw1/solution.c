@@ -1,45 +1,25 @@
 #include <stdio.h>
-#include <ctype.h>
+#include <stdlib.h>
 #include <string.h>
+#include <ctype.h>
 
-int is_valid_identifier(char *str) {
-    if (!isalpha(str[0])) {
-        return 0; // Проверка на начало с буквы
-    }
-    for (int i = 1; i < strlen(str); i++) {
-        if (!isalnum(str[i])) {
-            return 0; // Проверка на буквы и цифры
-        }
-    }
-    return 1;
-}
+#define BUFFER_SIZE 1024
 
 int main() {
-    char str[1000];
-    printf("Введите ASCII-строку: ");
-    fgets(str, sizeof(str), stdin);
+    char input_line[BUFFER_SIZE];
+    int num_identifiers = 0;
 
-    int count = 0;
-    int identifiers[1000] = {0}; // Массив для хранения уникальных идентификаторов
-    char *token = strtok(str, " ,.!?;:\n\t"); // Разделители
-
-    while (token != NULL) {
-        if (is_valid_identifier(token)) {
-            int is_new = 1;
-            for (int i = 0; i < count; i++) {
-                if (strcmp(token, &str[identifiers[i]]) == 0) {
-                    is_new = 0;
-                    break;
-                }
+    while(fgets(input_line, sizeof(input_line), stdin) != NULL) {
+        char* token = strtok(input_line, " \t\n\r"); // Разделители: пробел, табуляция, новая строка, возврат каретки
+        while(token != NULL) {
+            if(isalpha(token[0])) { // Проверяем, начинается ли идентификатор с буквы
+                num_identifiers++;
             }
-            if (is_new) {
-                identifiers[count++] = token - str;
-            }
+            token = strtok(NULL, " \t\n\r");
         }
-        token = strtok(NULL, " ,.!?;:\n\t");
     }
 
-    printf("Количество различных идентификаторов: %d\n", count);
+    printf("Количество идентификаторов: %d\n", num_identifiers);
 
     return 0;
 }
