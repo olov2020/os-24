@@ -4,7 +4,7 @@
 #include <string.h>
 #include <fcntl.h>
 
-#define BUFFER_SIZE 1024
+#define BUFFER_SIZE 5000
 
 int main() {
     char input_filename[BUFFER_SIZE];
