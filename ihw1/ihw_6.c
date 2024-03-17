@@ -38,7 +38,7 @@ int main() {
 
     if (pid1 == 0) {
         // Код первого процесса (читает из файла и передает через неименованный канал)
-        close(channel1[0]);  // Закрываем чтение канала
+        close(channel1[0]);  // Закрываем чтение канала 1
         int input_fd = open(input_filename, O_RDONLY);
         char buffer[BUFFER_SIZE];
         ssize_t bytes_read;
@@ -66,7 +66,8 @@ int main() {
             perror("Ошибка при запуске второго процесса");
             exit(EXIT_FAILURE);
         } else {
-            // Код третьего процесса (вывод в файл)
+            // Код первого процесса (вывод в файл)
+            wait(NULL);  // Ждем завершения второго процесса
             close(channel1[0]);
             close(channel2[1]);
             int output_fd = open(output_filename, O_WRONLY | O_CREAT | O_TRUNC, 0666);
