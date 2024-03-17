@@ -39,6 +39,10 @@ int main() {
     if (pid1 == 0) {
         // Код первого процесса (читает из файла и передает через канал)
         int fd1 = open(fifo1, O_WRONLY);
+        if (fd1 == -1) {
+            perror("Ошибка открытия именованного канала для записи");
+            exit(EXIT_FAILURE);
+        }
         dup2(fd1, STDOUT_FILENO); // Перенаправляем вывод в канал
         execlp("cat", "cat", input_filename, NULL);
         perror("Ошибка при запуске первого процесса");
@@ -56,7 +60,15 @@ int main() {
         if (pid2 == 0) {
             // Код второго процесса (обработка данных)
             int fd1 = open(fifo1, O_RDONLY);
+            if (fd1 == -1) {
+                perror("Ошибка открытия именованного канала для чтения");
+                exit(EXIT_FAILURE);
+            }
             int fd2 = open(fifo2, O_WRONLY);
+            if (fd2 == -1) {
+                perror("Ошибка открытия именованного канала для записи");
+                exit(EXIT_FAILURE);
+            }
             dup2(fd1, STDIN_FILENO); // Перенаправляем ввод из канала
             dup2(fd2, STDOUT_FILENO); // Перенаправляем вывод в канал
             execl("./solution", "solution", NULL); // Запускаем программу для обработки данных
@@ -67,6 +79,10 @@ int main() {
 
             // Код третьего процесса (вывод в файл)
             int fd2 = open(fifo2, O_RDONLY);
+            if (fd2 == -1) {
+                perror("Ошибка открытия именованного канала для чтения");
+                exit(EXIT_FAILURE);
+            }
             int output_fd = open(output_filename, O_WRONLY | O_CREAT | O_TRUNC, 0666);
             if (output_fd == -1) {
                 perror("Ошибка открытия файла вывода");
