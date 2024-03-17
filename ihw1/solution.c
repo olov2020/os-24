@@ -5,13 +5,6 @@
 
 #define BUFFER_SIZE 5000
 
-#include <stdio.h>
-#include <stdlib.h>
-#include <string.h>
-#include <ctype.h>
-
-#define BUFFER_SIZE 5000
-
 int is_valid_identifier(char *str) {
     if (!isalpha(str[0])) {
         return 0; // Проверка на начало с буквы
