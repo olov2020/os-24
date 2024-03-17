@@ -59,14 +59,15 @@ int main() {
         if (pid2 == 0) {
             // Код второго процесса (обработка данных)
             close(channel1[1]);  // Закрываем запись канала 1
-            close(channel2[0]);  // Закрываем чтение канала 2
+            close(channel1[0]);  // Закрываем чтение канала 1
+            close(channel2[1]);  // Закрываем запись канала 2
             dup2(channel1[0], STDIN_FILENO);
             dup2(channel2[1], STDOUT_FILENO);
             execl("./solution", "solution", NULL);
             perror("Ошибка при запуске второго процесса");
             exit(EXIT_FAILURE);
         } else {
-            // Код первого процесса (вывод в файл)
+            // Код третьего процесса (вывод в файл)
             wait(NULL);  // Ждем завершения второго процесса
             close(channel1[0]);
             close(channel2[1]);
