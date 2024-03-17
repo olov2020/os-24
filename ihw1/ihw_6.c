@@ -3,15 +3,22 @@
 #include <unistd.h>
 #include <string.h>
 #include <fcntl.h>
+#include <sys/types.h>
+#include <sys/stat.h>
+#include <sys/wait.h>
 
 #define BUFFER_SIZE 5000
 
 int main() {
     char input_filename[BUFFER_SIZE];
     char output_filename[BUFFER_SIZE];
-    int fd1[2], fd2[2];
+    int pipefd[2];
     pid_t pid1, pid2;
-    char buffer[BUFFER_SIZE];
+
+    if (pipe(pipefd) == -1) {
+        perror("Ошибка при создании канала");
+        exit(EXIT_FAILURE);
+    }
 
     printf("Введите путь к файлу ввода: ");
     fgets(input_filename, sizeof(input_filename), stdin);
@@ -21,11 +28,6 @@ int main() {
     fgets(output_filename, sizeof(output_filename), stdin);
     output_filename[strcspn(output_filename, "\n")] = '\0'; // Удаляем символ новой строки
 
-    if (pipe(fd1) == -1 || pipe(fd2) == -1) {
-        perror("Ошибка создания канала");
-        exit(EXIT_FAILURE);
-    }
-
     pid1 = fork();
 
     if (pid1 < 0) {
@@ -34,17 +36,16 @@ int main() {
     }
 
     if (pid1 == 0) {
-        // Процесс чтения из файла и передачи через канал
-        close(fd1[0]); // Закрываем чтение
+        // Код первого процесса (читает из файла и передает через неименованный канал)
+        close(pipefd[0]); // Закрываем чтение
         int input_fd = open(input_filename, O_RDONLY);
-        if (input_fd == -1) {
-            perror("Ошибка открытия файла для чтения");
-            exit(EXIT_FAILURE);
+        char buffer[BUFFER_SIZE];
+        ssize_t bytes_read;
+        while ((bytes_read = read(input_fd, buffer, BUFFER_SIZE)) > 0) {
+            write(pipefd[1], buffer, bytes_read);
         }
-        while (read(input_fd, buffer, BUFFER_SIZE) > 0) {
-            write(fd1[1], buffer, BUFFER_SIZE);
-        }
-        close(fd1[1]); // Закрываем запись
+        close(input_fd);
+        close(pipefd[1]);
         exit(EXIT_SUCCESS);
     } else {
         pid2 = fork();
@@ -55,40 +56,26 @@ int main() {
         }
 
         if (pid2 == 0) {
-            // Процесс обработки данных
-            close(fd1[1]); // Закрываем запись
-            close(fd2[0]); // Закрываем чтение
-
-            while (read(fd1[0], buffer, BUFFER_SIZE) > 0) {
-                // Обработка данных (можно добавить соответствующую логику)
-                // Например, преобразование текста
-                // Пример обработки: просто переворачиваем текст
-                for (int i = 0, j = strlen(buffer)-1; i < j; i++, j--) {
-                    char temp = buffer[i];
-                    buffer[i] = buffer[j];
-                    buffer[j] = temp;
-                }
-                
-                write(fd2[1], buffer, BUFFER_SIZE); // Передаем данные обратно
+            // Код второго процесса (обработка данных)
+            char buffer[BUFFER_SIZE];
+            ssize_t bytes_read;
+            close(pipefd[1]); // Закрываем запись
+            while ((bytes_read = read(pipefd[0], buffer, BUFFER_SIZE)) > 0) {
+                // Здесь можно добавить код для обработки данных по заданию
+                // В данном примере я просто отправлю данные обратно
+                write(STDOUT_FILENO, buffer, bytes_read);
             }
-            close(fd1[0]); // Закрываем чтение
-            close(fd2[1]); // Закрываем запись
+            close(pipefd[0]);
             exit(EXIT_SUCCESS);
         } else {
-            // Процесс вывода в файл
-            close(fd1[0]); // Закрываем чтение
-            close(fd2[1]); // Закрываем запись
+            close(pipefd[0]); // Закрываем чтение в родительском процессе
+            close(pipefd[1]); // Закрываем запись в родительском процессе
+            
             int output_fd = open(output_filename, O_WRONLY | O_CREAT | O_TRUNC, 0666);
-            if (output_fd == -1) {
-                perror("Ошибка открытия файла вывода");
-                exit(EXIT_FAILURE);
-            }
-            while (read(fd2[0], buffer, BUFFER_SIZE) > 0) {
-                write(output_fd, buffer, BUFFER_SIZE);
-            }
-            close(fd2[0]); // Закрываем чтение
-            close(output_fd); // Закрываем файл вывода
-            exit(EXIT_SUCCESS);
+            dup2(output_fd, STDOUT_FILENO); // Перенаправляем стандартный вывод в файл
+            execl("/bin/cat", "cat", NULL); // Вывод данных в заданный файл
+            perror("Ошибка при запуске третьего процесса");
+            exit(EXIT_FAILURE);
         }
     }
 
