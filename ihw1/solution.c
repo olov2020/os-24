@@ -3,7 +3,7 @@
 #include <string.h>
 #include <ctype.h>
 
-#define BUFFER_SIZE 1024
+#define BUFFER_SIZE 5000
 
 int is_valid_identifier(char *str) {
     if (!isalpha(str[0])) {
