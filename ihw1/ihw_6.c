@@ -37,7 +37,7 @@ int main() {
 
     if (pid1 == 0) {
         // Код первого процесса (читает из файла и передает через неименованный канал)
-        close(pipefd[0]);  // Закрываем чтение
+        close(pipefd[0]); // Закрываем чтение
         int input_fd = open(input_filename, O_RDONLY);
         char buffer[BUFFER_SIZE];
         ssize_t bytes_read;
@@ -59,25 +59,23 @@ int main() {
             // Код второго процесса (обработка данных)
             char buffer[BUFFER_SIZE];
             ssize_t bytes_read;
-            close(pipefd[1]);  // Закрываем запись
+            close(pipefd[1]); // Закрываем запись
             while ((bytes_read = read(pipefd[0], buffer, BUFFER_SIZE)) > 0) {
-                // Обработка данных в соответствии с заданием
-                // Здесь можно вставить вашу обработку
+                // Здесь можно добавить код для обработки данных по заданию
                 // В данном примере я просто отправлю данные обратно
                 write(STDOUT_FILENO, buffer, bytes_read);
             }
             close(pipefd[0]);
             exit(EXIT_SUCCESS);
         } else {
-            // Код третьего процесса (вывод в файл)
+            close(pipefd[0]); // Закрываем чтение в родительском процессе
+            close(pipefd[1]); // Закрываем запись в родительском процессе
+            
             int output_fd = open(output_filename, O_WRONLY | O_CREAT | O_TRUNC, 0666);
-            char buffer[BUFFER_SIZE];
-            ssize_t bytes_read;
-            while ((bytes_read = read(STDIN_FILENO, buffer, BUFFER_SIZE)) > 0) {
-                write(output_fd, buffer, bytes_read);
-            }
-            close(output_fd);
-            exit(EXIT_SUCCESS);
+            dup2(output_fd, STDOUT_FILENO); // Перенаправляем стандартный вывод в файл
+            execl("/bin/cat", "cat", NULL); // Вывод данных в заданный файл
+            perror("Ошибка при запуске третьего процесса");
+            exit(EXIT_FAILURE);
         }
     }
 
