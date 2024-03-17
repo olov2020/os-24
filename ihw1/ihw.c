@@ -9,7 +9,8 @@
 int main() {
     char input_filename[BUFFER_SIZE];
     char output_filename[BUFFER_SIZE];
-    int fd1[2], fd2[2];
+    char fifo1[] = "fifo1";
+    char fifo2[] = "fifo2";
     pid_t pid1, pid2;
 
     printf("Введите путь к файлу ввода: ");
@@ -20,10 +21,8 @@ int main() {
     fgets(output_filename, sizeof(output_filename), stdin);
     output_filename[strcspn(output_filename, "\n")] = '\0'; // Удаляем символ новой строки
 
-    if (pipe(fd1) == -1 || pipe(fd2) == -1) {
-        perror("Ошибка создания канала");
-        exit(EXIT_FAILURE);
-    }
+    mkfifo(fifo1, 0666);
+    mkfifo(fifo2, 0666);
 
     pid1 = fork();
 
@@ -33,12 +32,28 @@ int main() {
     }
 
     if (pid1 == 0) {
-        // Код первого процесса (читает из файла и передает через канал)
-        close(fd1[0]); // Закрываем чтение
-        dup2(fd1[1], STDOUT_FILENO); // Перенаправляем вывод в канал
-        execlp("cat", "cat", input_filename, NULL); // Читаем из файла input_filename
-        perror("Ошибка при запуске первого процесса");
-        exit(EXIT_FAILURE);
+        // Код первого процесса (читает из файла и передает через именованный канал)
+        int fd1 = open(fifo1, O_WRONLY);
+        if (fd1 == -1) {
+            perror("Ошибка открытия именованного канала 1");
+            exit(EXIT_FAILURE);
+        }
+
+        int input_fd = open(input_filename, O_RDONLY);
+        if (input_fd == -1) {
+            perror("Ошибка открытия файла ввода");
+            exit(EXIT_FAILURE);
+        }
+
+        char buffer[BUFFER_SIZE];
+        ssize_t bytes_read;
+        while ((bytes_read = read(input_fd, buffer, BUFFER_SIZE)) > 0) {
+            write(fd1, buffer, bytes_read);
+        }
+
+        close(input_fd);
+        close(fd1);
+        exit(EXIT_SUCCESS);
     } else {
         pid2 = fork();
 
@@ -49,29 +64,29 @@ int main() {
 
         if (pid2 == 0) {
             // Код второго процесса (обработка данных)
-            close(fd1[1]); // Закрываем запись
-            close(fd2[0]); // Закрываем чтение
-            dup2(fd1[0], STDIN_FILENO); // Перенаправляем ввод из канала
-            dup2(fd2[1], STDOUT_FILENO); // Перенаправляем вывод в канал
+            int fd1 = open(fifo1, O_RDONLY);
+            int fd2 = open(fifo2, O_WRONLY);
+
+            dup2(fd1, STDIN_FILENO); // Перенаправляем ввод из именованного канала 1
+            dup2(fd2, STDOUT_FILENO); // Перенаправляем вывод в именованный канал 2
             execl("solution", "solution", NULL); // Запускаем программу для обработки данных
 
             perror("Ошибка при запуске второго процесса");
             exit(EXIT_FAILURE);
         } else {
-            // Код третьего процесса (вывод в файл)
-            close(fd1[0]); // Закрываем чтение
-            close(fd1[1]);
-            close(fd2[1]); // Закрываем запись
+            // Код третьего процесса (вывод из именованного канала в файл)
+            int fd2 = open(fifo2, O_RDONLY);
             int output_fd = open(output_filename, O_WRONLY | O_CREAT | O_TRUNC, 0666);
-            if (output_fd == -1) {
-                perror("Ошибка открытия файла вывода");
-                exit(EXIT_FAILURE);
+
+            char buffer[BUFFER_SIZE];
+            ssize_t bytes_read;
+            while ((bytes_read = read(fd2, buffer, BUFFER_SIZE)) > 0) {
+                write(output_fd, buffer, bytes_read);
             }
-            dup2(fd2[0], STDIN_FILENO); // Перенаправляем ввод из канала
-            dup2(output_fd, STDOUT_FILENO); // Перенаправляем вывод в файл
-            execlp("cat", "cat", NULL); // Выводим в файл output_filename
-            perror("Ошибка при запуске третьего процесса");
-            exit(EXIT_FAILURE);
+
+            close(fd2);
+            close(output_fd);
+            exit(EXIT_SUCCESS);
         }
     }
 
