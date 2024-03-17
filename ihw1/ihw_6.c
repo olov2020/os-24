@@ -36,7 +36,7 @@ int main() {
     }
 
     if (pid1 == 0) {
-        // Код первого процесса (читает из файла и передает через неименованный канал)
+        // Процесс чтения из файла и передачи через неименованный канал
         close(pipefd[0]); // Закрываем чтение
         int input_fd = open(input_filename, O_RDONLY);
         char buffer[BUFFER_SIZE];
@@ -56,26 +56,27 @@ int main() {
         }
 
         if (pid2 == 0) {
-            // Код второго процесса (обработка данных)
+            // Процесс обработки данных
             char buffer[BUFFER_SIZE];
             ssize_t bytes_read;
             close(pipefd[1]); // Закрываем запись
+            int output_fd = open(output_filename, O_WRONLY | O_CREAT | O_TRUNC, 0666);
             while ((bytes_read = read(pipefd[0], buffer, BUFFER_SIZE)) > 0) {
-                // Здесь можно добавить код для обработки данных по заданию
-                // В данном примере я просто отправлю данные обратно
-                write(STDOUT_FILENO, buffer, bytes_read);
+                // Обработка данных (можно добавить соответствующую логику)
+                // В данном примере просто записываем в файл
+                write(output_fd, buffer, bytes_read);
             }
             close(pipefd[0]);
+            close(output_fd);
             exit(EXIT_SUCCESS);
         } else {
-            close(pipefd[0]); // Закрываем чтение в родительском процессе
-            close(pipefd[1]); // Закрываем запись в родительском процессе
-            
-            int output_fd = open(output_filename, O_WRONLY | O_CREAT | O_TRUNC, 0666);
-            dup2(output_fd, STDOUT_FILENO); // Перенаправляем стандартный вывод в файл
-            execl("/bin/cat", "cat", NULL); // Вывод данных в заданный файл
-            perror("Ошибка при запуске третьего процесса");
-            exit(EXIT_FAILURE);
+            // Закрыть ненужные дескрипторы файлов в родительском процессе
+            close(pipefd[0]);
+            close(pipefd[1]);
+
+            // Ожидание завершения обработки данных
+            wait(NULL);
+            wait(NULL);
         }
     }
 
