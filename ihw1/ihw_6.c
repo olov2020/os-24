@@ -60,15 +60,15 @@ int main() {
             // Код второго процесса (обработка данных)
             close(channel1[1]);  // Закрываем запись канала 1
             close(channel2[0]);  // Закрываем чтение канала 2
-            dup2(channel1[0], STDIN_FILENO); // Перенаправляем ввод из канала 1
-            dup2(channel2[1], STDOUT_FILENO); // Перенаправляем вывод в канал 2
-            execl("./solution", "solution", NULL); // Запускаем программу для обработки данных
+            dup2(channel1[0], STDIN_FILENO);
+            dup2(channel2[1], STDOUT_FILENO);
+            execl("./solution", "solution", NULL);
             perror("Ошибка при запуске второго процесса");
             exit(EXIT_FAILURE);
         } else {
             // Код третьего процесса (вывод в файл)
-            close(channel1[0]);  // Закрываем чтение канала 1
-            close(channel2[1]);  // Закрываем запись канала 2
+            close(channel1[0]);
+            close(channel2[1]);
             int output_fd = open(output_filename, O_WRONLY | O_CREAT | O_TRUNC, 0666);
             char buffer[BUFFER_SIZE];
             ssize_t bytes_read;
