@@ -8,6 +8,7 @@
 
 #define BUFFER_SIZE 5000
 
+
 void read_from_file(int fd, char* buffer, size_t size) {
     ssize_t bytes_read = read(fd, buffer, size);
     if (bytes_read == -1) {
@@ -22,6 +23,46 @@ void write_to_file(int fd, char* buffer, size_t size) {
         perror("Ошибка при записи в файл");
         exit(EXIT_FAILURE);
     }
+}
+
+int is_valid_identifier(char *str) {
+    if (!isalpha(str[0])) {
+        return 0; // Проверка на начало с буквы
+    }
+    for (int i = 1; i < strlen(str); i++) {
+        if (!isalnum(str[i])) {
+            return 0; // Проверка на буквы и цифры
+        }
+    }
+    return 1;
+}
+
+void count(fd2) {
+    char input_line[BUFFER_SIZE];
+    fgets(input_line, sizeof(input_line), stdin);
+
+    int count = 0;
+    int identifiers[1000] = {0}; // Массив для хранения уникальных идентификаторов
+    char *token = strtok(input_line, " ,.!?;:-=\n\t"); // Разделители
+
+    while (token != NULL) {
+        if (is_valid_identifier(token)) {
+            int is_new = 1;
+            for (int i = 0; i < count; i++) {
+                if (strcmp(token, &input_line[identifiers[i]]) == 0) {
+                    is_new = 0;
+                    break;
+                }
+            }
+            if (is_new) {
+                identifiers[count++] = token - input_line;
+            }
+        }
+        token = strtok(NULL, " ,.!?;:\n\t");
+    }
+
+    printf("Количество различных идентификаторов: %d\n", count);
+    write_to_file(fd2[1], &count, sizeof(int));
 }
 
 int main() {
@@ -78,17 +119,7 @@ int main() {
             // Код второго процесса (обработка данных)
             close(fd1[1]); // Закрываем запись
             close(fd2[0]); // Закрываем чтение
-            char buffer[BUFFER_SIZE];
-            ssize_t bytes_read;
-            int num_identifiers = 0;
-            while ((bytes_read = read(fd1[0], buffer, BUFFER_SIZE)) > 0) {
-                for (int i = 0; i < bytes_read; i++) {
-                    if (isalpha(buffer[i])) {
-                        num_identifiers++;
-                    }
-                }
-            }
-            write_to_file(fd2[1], &num_identifiers, sizeof(int));
+            count(fd2);
             close(fd1[0]);
             close(fd2[1]);
             exit(EXIT_SUCCESS);
