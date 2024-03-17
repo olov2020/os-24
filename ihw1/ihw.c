@@ -3,67 +3,8 @@
 #include <unistd.h>
 #include <string.h>
 #include <fcntl.h>
-#include <ctype.h>
-#include <sys/types.h>
 
 #define BUFFER_SIZE 5000
-
-
-void read_from_file(int fd, char* buffer, size_t size) {
-    ssize_t bytes_read = read(fd, buffer, size);
-    if (bytes_read == -1) {
-        perror("Ошибка при чтении файла");
-        exit(EXIT_FAILURE);
-    }
-}
-
-void write_to_file(int fd, char* buffer, size_t size) {
-    ssize_t bytes_written = write(fd, buffer, size);
-    if (bytes_written == -1) {
-        perror("Ошибка при записи в файл");
-        exit(EXIT_FAILURE);
-    }
-}
-
-int is_valid_identifier(char *str) {
-    if (!isalpha(str[0])) {
-        return 0; // Проверка на начало с буквы
-    }
-    for (int i = 1; i < strlen(str); i++) {
-        if (!isalnum(str[i])) {
-            return 0; // Проверка на буквы и цифры
-        }
-    }
-    return 1;
-}
-
-void count(fd2) {
-    char input_line[BUFFER_SIZE];
-    fgets(input_line, sizeof(input_line), stdin);
-
-    int count = 0;
-    int identifiers[1000] = {0}; // Массив для хранения уникальных идентификаторов
-    char *token = strtok(input_line, " ,.!?;:-=\n\t"); // Разделители
-
-    while (token != NULL) {
-        if (is_valid_identifier(token)) {
-            int is_new = 1;
-            for (int i = 0; i < count; i++) {
-                if (strcmp(token, &input_line[identifiers[i]]) == 0) {
-                    is_new = 0;
-                    break;
-                }
-            }
-            if (is_new) {
-                identifiers[count++] = token - input_line;
-            }
-        }
-        token = strtok(NULL, " ,.!?;:\n\t");
-    }
-
-    printf("Количество различных идентификаторов: %d\n", count);
-    write_to_file(fd2[1], &count, sizeof(int));
-}
 
 int main() {
     char input_filename[BUFFER_SIZE];
@@ -94,19 +35,10 @@ int main() {
     if (pid1 == 0) {
         // Код первого процесса (читает из файла и передает через канал)
         close(fd1[0]); // Закрываем чтение
-        int input_fd = open(input_filename, O_RDONLY);
-        if (input_fd == -1) {
-            perror("Ошибка открытия файла ввода");
-            exit(EXIT_FAILURE);
-        }
-        char buffer[BUFFER_SIZE];
-        ssize_t bytes_read;
-        while ((bytes_read = read(input_fd, buffer, BUFFER_SIZE)) > 0) {
-            write_to_file(fd1[1], buffer, bytes_read);
-        }
-        close(input_fd);
-        close(fd1[1]);
-        exit(EXIT_SUCCESS);
+        dup2(fd1[1], STDOUT_FILENO); // Перенаправляем вывод в канал
+        execlp("cat", "cat", input_filename, NULL); // Читаем из файла input_filename
+        perror("Ошибка при запуске первого процесса");
+        exit(EXIT_FAILURE);
     } else {
         pid2 = fork();
 
@@ -119,10 +51,12 @@ int main() {
             // Код второго процесса (обработка данных)
             close(fd1[1]); // Закрываем запись
             close(fd2[0]); // Закрываем чтение
-            count(fd2);
-            close(fd1[0]);
-            close(fd2[1]);
-            exit(EXIT_SUCCESS);
+            dup2(fd1[0], STDIN_FILENO); // Перенаправляем ввод из канала
+            dup2(fd2[1], STDOUT_FILENO); // Перенаправляем вывод в канал
+            execl("solution", "solution", NULL); // Запускаем программу для обработки данных
+
+            perror("Ошибка при запуске второго процесса");
+            exit(EXIT_FAILURE);
         } else {
             // Код третьего процесса (вывод в файл)
             close(fd1[0]); // Закрываем чтение
@@ -133,14 +67,11 @@ int main() {
                 perror("Ошибка открытия файла вывода");
                 exit(EXIT_FAILURE);
             }
-            int num_identifiers;
-            read_from_file(fd2[0], &num_identifiers, sizeof(int));
-            char num_identifiers_str[BUFFER_SIZE];
-            sprintf(num_identifiers_str, "%d\n", num_identifiers);
-            write_to_file(output_fd, num_identifiers_str, strlen(num_identifiers_str));
-            close(fd2[0]);
-            close(output_fd);
-            exit(EXIT_SUCCESS);
+            dup2(fd2[0], STDIN_FILENO); // Перенаправляем ввод из канала
+            dup2(output_fd, STDOUT_FILENO); // Перенаправляем вывод в файл
+            execlp("cat", "cat", NULL); // Выводим в файл output_filename
+            perror("Ошибка при запуске третьего процесса");
+            exit(EXIT_FAILURE);
         }
     }
 
