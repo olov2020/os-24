@@ -3,6 +3,8 @@
 #include <unistd.h>
 #include <string.h>
 #include <fcntl.h>
+#include <ctype.h>
+#include <sys/types.h>
 
 #define BUFFER_SIZE 5000
 
@@ -57,8 +59,10 @@ int main() {
             exit(EXIT_FAILURE);
         }
         char buffer[BUFFER_SIZE];
-        read_from_file(input_fd, buffer, BUFFER_SIZE);
-        write_to_file(fd1[1], buffer, BUFFER_SIZE);
+        ssize_t bytes_read;
+        while ((bytes_read = read(input_fd, buffer, BUFFER_SIZE)) > 0) {
+            write_to_file(fd1[1], buffer, bytes_read);
+        }
         close(input_fd);
         close(fd1[1]);
         exit(EXIT_SUCCESS);
@@ -75,18 +79,15 @@ int main() {
             close(fd1[1]); // Закрываем запись
             close(fd2[0]); // Закрываем чтение
             char buffer[BUFFER_SIZE];
-            read_from_file(fd1[0], buffer, BUFFER_SIZE);
-            // Обработка данных
-            // Например, можно сделать подсчет количества идентификаторов
+            ssize_t bytes_read;
             int num_identifiers = 0;
-            // Здесь может быть ваш код обработки данных
-            // Пример:
-            for (int i = 0; i < BUFFER_SIZE; i++) {
-                if (isalpha(buffer[i])) {
-                    num_identifiers++;
+            while ((bytes_read = read(fd1[0], buffer, BUFFER_SIZE)) > 0) {
+                for (int i = 0; i < bytes_read; i++) {
+                    if (isalpha(buffer[i])) {
+                        num_identifiers++;
+                    }
                 }
             }
-            // Запись результата в канал
             write_to_file(fd2[1], &num_identifiers, sizeof(int));
             close(fd1[0]);
             close(fd2[1]);
