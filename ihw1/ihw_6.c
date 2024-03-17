@@ -12,11 +12,12 @@
 int main() {
     char input_filename[BUFFER_SIZE];
     char output_filename[BUFFER_SIZE];
-    int pipefd[2];
+    int channel1[2];
+    int channel2[2];
     pid_t pid1, pid2;
 
-    if (pipe(pipefd) == -1) {
-        perror("Ошибка при создании канала");
+    if (pipe(channel1) == -1 || pipe(channel2) == -1) {
+        perror("Ошибка при создании каналов");
         exit(EXIT_FAILURE);
     }
 
@@ -36,16 +37,16 @@ int main() {
     }
 
     if (pid1 == 0) {
-        // Процесс чтения из файла и передачи через неименованный канал
-        close(pipefd[0]); // Закрываем чтение
+        // Код первого процесса (читает из файла и передает через неименованный канал)
+        close(channel1[0]);  // Закрываем чтение канала
         int input_fd = open(input_filename, O_RDONLY);
         char buffer[BUFFER_SIZE];
         ssize_t bytes_read;
         while ((bytes_read = read(input_fd, buffer, BUFFER_SIZE)) > 0) {
-            write(pipefd[1], buffer, bytes_read);
+            write(channel1[1], buffer, bytes_read);
         }
         close(input_fd);
-        close(pipefd[1]);
+        close(channel1[1]);
         exit(EXIT_SUCCESS);
     } else {
         pid2 = fork();
@@ -56,27 +57,27 @@ int main() {
         }
 
         if (pid2 == 0) {
-            // Процесс обработки данных
+            // Код второго процесса (обработка данных)
+            close(channel1[1]);  // Закрываем запись канала 1
+            close(channel2[0]);  // Закрываем чтение канала 2
+            dup2(channel1[0], STDIN_FILENO);
+            dup2(channel2[1], STDOUT_FILENO);
+            execl("./solution", "solution", NULL);
+            perror("Ошибка при запуске второго процесса");
+            exit(EXIT_FAILURE);
+        } else {
+            // Код третьего процесса (вывод в файл)
+            close(channel1[0]);
+            close(channel2[1]);
+            int output_fd = open(output_filename, O_WRONLY | O_CREAT | O_TRUNC, 0666);
             char buffer[BUFFER_SIZE];
             ssize_t bytes_read;
-            close(pipefd[1]); // Закрываем запись
-            int output_fd = open(output_filename, O_WRONLY | O_CREAT | O_TRUNC, 0666);
-            while ((bytes_read = read(pipefd[0], buffer, BUFFER_SIZE)) > 0) {
-                // Обработка данных (можно добавить соответствующую логику)
-                // В данном примере просто записываем в файл
+            while ((bytes_read = read(channel2[0], buffer, BUFFER_SIZE)) > 0) {
                 write(output_fd, buffer, bytes_read);
             }
-            close(pipefd[0]);
             close(output_fd);
+            close(channel2[0]);
             exit(EXIT_SUCCESS);
-        } else {
-            // Закрыть ненужные дескрипторы файлов в родительском процессе
-            close(pipefd[0]);
-            close(pipefd[1]);
-
-            // Ожидание завершения обработки данных
-            wait(NULL);
-            wait(NULL);
         }
     }
 
