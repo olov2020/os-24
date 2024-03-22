@@ -3,21 +3,8 @@
 #include <unistd.h>
 #include <sys/ipc.h>
 #include <sys/shm.h>
-#include <signal.h>
 
 #define SHMSZ 27
-
-#include <signal.h>
-
-void handle_signal(int signal)
-{
-    if (signal == SIGINT)
-    {
-        // Удаление сегмента разделяемой памяти
-        shmctl(shmid, IPC_RMID, NULL);
-        exit(0);
-    }
-}
 
 int main()
 {
@@ -47,10 +34,14 @@ int main()
 
     *s = random_num;
 
+    // Ждем завершения сервера
     while (*shm != '*')
     {
         sleep(1);
     }
 
-    signal(SIGINT, handle_signal);
+    // Отсоединяемся от сегмента разделяемой памяти
+    shmdt(shm);
+
+    exit(0);
 }
