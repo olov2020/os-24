@@ -3,8 +3,19 @@
 #include <unistd.h>
 #include <sys/ipc.h>
 #include <sys/shm.h>
+#include <signal.h>
 
 #define SHMSZ 27
+
+void handle_signal(int signal)
+{
+    if (signal == SIGINT)
+    {
+        // Удаление сегмента разделяемой памяти
+        shmctl(shmid, IPC_RMID, NULL);
+        exit(0);
+    }
+}
 
 int main()
 {
@@ -34,6 +45,5 @@ int main()
     }
 
     *shm = '*';
-
-    exit(0);
+    signal(SIGINT, handle_signal);
 }
