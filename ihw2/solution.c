@@ -6,12 +6,12 @@
 
 int pot_of_missionaries;
 
-void eat_missionary(int id) {
+void eat_missionary(int id, int M) {
     printf("Дикарь %d ест кусок тушеного миссионера\n", id);
     pot_of_missionaries--;
 }
 
-void cook_missionaries() {
+void cook_missionaries(int M) {
     printf("Повар готовит обед\n");
     pot_of_missionaries = M;
 }
@@ -27,12 +27,15 @@ int main() {
     scanf("%d", &M);
     pot_of_missionaries = M;
 
+    // Set up signal handler
+    signal(SIGUSR1, cook_missionaries);
+
     // Создание процесса для повара
     if ((pid = fork()) == 0) {
         while (1) {
             // Повар спит, пока не проснется первый дикарь
             pause();
-            cook_missionaries();
+            cook_missionaries(M);
         }
     } else if (pid < 0) {
         perror("Ошибка при создании процесса для повара");
@@ -44,7 +47,7 @@ int main() {
         if ((pid = fork()) == 0) {
             while (1) {
                 if (pot_of_missionaries > 0) {
-                    eat_missionary(i);
+                    eat_missionary(i, M);
                     sleep(1); // Дикарь ест кусок тушеного миссионера
                 } else {
                     printf("Дикарь %d будит повара\n", i);
@@ -58,9 +61,6 @@ int main() {
             exit(EXIT_FAILURE);
         }
     }
-
-    // Обработка сигнала от дикарей для повара
-    signal(SIGUSR1, cook_missionaries);
 
     // Ожидание завершения всех процессов
     for (i = 0; i < N + 1; i++) {
