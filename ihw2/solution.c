@@ -49,17 +49,27 @@ int main() {
     int N, M;
 
     printf("Enter the number of tribesmen (N): ");
-    scanf("%d", &N);
+    if (scanf("%d", &N) != 1 || N <= 0) {
+        printf("Invalid input for the number of tribesmen.\n");
+        return 1;
+    }
 
     printf("Enter the number of pieces of stewed missionary (M): ");
-    scanf("%d", &M);
+    if (scanf("%d", &M) != 1 || M <= 0) {
+        printf("Invalid input for the number of pieces.\n");
+        return 1;
+    }
 
     sem_init(&pot_sem, 0, 1); // Semaphore initialization
-    sem_init(&cook_sem, 0, 0);
+    sem_init(&cook_sem, 0, 0); // Initialize cook semaphore
 
     pid_t pid;
     for (int i = 0; i < N; i++) {
         pid = fork();
+        if (pid == -1) {
+            perror("fork");
+            exit(1);
+        }
         if (pid == 0) { // Child process
             eat_process(i+1, N);
             exit(0);
@@ -67,6 +77,10 @@ int main() {
     }
 
     pid = fork();
+    if (pid == -1) {
+        perror("fork");
+        exit(1);
+    }
     if (pid == 0) { // Child process
         cook_process(M);
         exit(0);
