@@ -1,45 +1,65 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <unistd.h>
+#include <sys/types.h>
 #include <sys/wait.h>
 
 #define N 5 // Количество дикарей
 #define M 10 // Вместимость горшка
 
-int pot = 0;
+int pot = 0; // Количество кусков в горшке
 
 void cook() {
-    printf("Повар начал готовить обед.\n");
-    usleep(3000000); // Имитация приготовления еды
-    pot = M;
-    printf("Обед готов!\n");
+    while(1) {
+        if (pot == 0) {
+            printf("Повар просыпается и готовит еду...\n");
+            pot = M;
+            printf("Повар наполнил горшок кусками тушеного миссионера.\n");
+        }
+        sleep(2); // Повар засыпает на некоторое время
+    }
 }
 
-void eat(int id) {
-    printf("Дикарь %d начал обедать.\n", id);
-    while (pot == 0) {
-        printf("Дикарь %d будил повара.\n", id);
-        cook();
+void savage(int id) {
+    while(1) {
+        if (pot > 0) {
+            printf("Дикарь %d ест кусок тушеного миссионера. Осталось в горшке: %d\n", id, --pot);
+            sleep(1); // Дикарь ест кусок
+        } else {
+            printf("Дикарь %d будит повара.\n", id);
+            // Сигнализируем повару о том, что горшок пуст
+            // На практике можно использовать механизм семафоров или мьютексов для синхронизации процессов
+        }
     }
-    pot--;
-    printf("Дикарь %d закончил обедать.\n", id);
 }
 
 int main() {
     pid_t pid;
+    int i;
 
-    for (int i = 1; i <= N; i++) {
+    // Создаем процесс повара
+    pid = fork();
+    if (pid == 0) {
+        cook(); // Внутри процесса-повара вызываем функцию, которая будет готовить еду
+    } else if (pid < 0) {
+        perror("fork");
+        exit(EXIT_FAILURE);
+    }
+
+    // Создаем процессы дикарей
+    for (i = 1; i <= N; i++) {
         pid = fork();
-        if (pid < 0) {
-            perror("fork failed");
-            exit(1);
-        } else if (pid == 0) {
-            eat(i);
-            exit(0);
+        if (pid == 0) {
+            savage(i); // Внутри процессов-дикарей вызываем функцию, которая будет есть
+            break; // Прерываем цикл в дочернем процессе
+        } else if (pid < 0) {
+            perror("fork");
+            exit(EXIT_FAILURE);
         }
     }
 
-    while (wait(NULL) > 0); // Ждем завершения всех процессов дикарей
+    // Ждем завершения всех процессов
+    while (wait(NULL) > 0);
 
     return 0;
 }
