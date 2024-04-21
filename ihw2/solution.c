@@ -1,71 +1,99 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <unistd.h>
-#include <sys/wait.h>
-#include <signal.h>
+#include <pthread.h>
+#include <semaphore.h>
 
-int pot_of_missionaries;
+// Number of savages
+#define NUM_SAVAGES 5
 
-void eat_missionary(int id, int M) {
-    printf("Дикарь %d ест кусок тушеного миссионера\n", id);
-    pot_of_missionaries--;
+// Capacity of the pot
+#define POT_CAPACITY 10
+
+// Semaphore to protect the pot
+sem_t pot_mutex;
+
+// Semaphore to signal the cook that the pot is empty
+sem_t pot_empty;
+
+// Semaphore to signal the savages that the pot is full
+sem_t pot_full;
+
+// Function for the cook thread
+void *cook(void *arg) {
+    while (1) {
+        // Wait for the pot to be empty
+        sem_wait(&pot_empty);
+
+        // Fill the pot
+        printf("Cook: Filling the potn");
+        sleep(1);
+
+        // Signal the savages that the pot is full
+        sem_post(&pot_full);
+    }
+
+    return NULL;
 }
 
-void cook_missionaries(int M) {
-    printf("Повар готовит обед\n");
-    pot_of_missionaries = M;
+// Function for the savage thread
+void *savage(void *arg) {
+    int savage_id = (int) arg;
+
+    while (1) {
+        // Wait for the pot to be full
+        sem_wait(&pot_full);
+
+        // Enter the critical section
+        sem_wait(&pot_mutex);
+
+        // Check if the pot is empty
+        if (POT_CAPACITY == 0) {
+            // Wake up the cook
+            sem_post(&pot_empty);
+
+            // Wait for the pot to be full again
+            sem_wait(&pot_full);
+        }
+
+        // Eat from the pot
+        POT_CAPACITY--;
+        printf("Savage %d: Eatingn", savage_id);
+        sleep(1);
+
+        // Leave the critical section
+        sem_post(&pot_mutex);
+    }
+
+    return NULL;
 }
 
 int main() {
-    pid_t pid;
-    int i, N, M;
+    // Initialize the semaphores
+    sem_init(&pot_mutex, 0, 1);
+    sem_init(&pot_empty, 0, 0);
+    sem_init(&pot_full, 0, 0);
 
-    // Read N and M from console
-    printf("Введите количество дикарей (N): ");
-    scanf("%d", &N);
-    printf("Введите вместимость горшка (M): ");
-    scanf("%d", &M);
-    pot_of_missionaries = M;
+    // Create the cook thread
+    pthread_t cook_thread;
+    pthread_create(&cook_thread, NULL, cook, NULL);
 
-    // Set up signal handler
-    signal(SIGUSR1, cook_missionaries);
-
-    // Создание процесса для повара
-    if ((pid = fork()) == 0) {
-        while (1) {
-            // Повар спит, пока не проснется первый дикарь
-            pause();
-            cook_missionaries(M);
-        }
-    } else if (pid < 0) {
-        perror("Ошибка при создании процесса для повара");
-        exit(EXIT_FAILURE);
+    // Create the savage threads
+    pthread_t savage_threads[NUM_SAVAGES];
+    for (int i = 0; i < NUM_SAVAGES; i++) {
+        pthread_create(&savage_threads[i], NULL, savage, (void *) i);
     }
 
-    // Создание процессов для дикарей
-    for (i = 1; i <= N; i++) {
-        if ((pid = fork()) == 0) {
-            while (1) {
-                if (pot_of_missionaries > 0) {
-                    eat_missionary(i, M);
-                    sleep(1); // Дикарь ест кусок тушеного миссионера
-                } else {
-                    printf("Дикарь %d будит повара\n", i);
-                    // Будим повара и ждем, пока он приготовит обед
-                    kill(getppid(), SIGUSR1);
-                    pause();
-                }
-            }
-        } else if (pid < 0) {
-            perror("Ошибка при создании процесса для дикаря");
-            exit(EXIT_FAILURE);
-        }
+    // Join the threads
+    pthread_join(cook_thread, NULL);
+    for (int i = 0; i < NUM_SAVAGES; i++) {
+        pthread_join(savage_threads[i], NULL);
     }
 
-    // Ожидание завершения всех процессов
-    for (i = 0; i < N + 1; i++) {
-        wait(NULL);
-    }
+    // Destroy the semaphores
+    sem_destroy(&pot_mutex);
+    sem_destroy(&pot_empty);
+    sem_destroy(&pot_full);
 
     return 0;
 }
