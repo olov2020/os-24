@@ -2,6 +2,7 @@
 #include <stdlib.h>
 #include <unistd.h>
 #include <sys/wait.h>
+#include <signal.h>
 
 int pot_of_missionaries;
 
@@ -30,7 +31,7 @@ int main() {
     if ((pid = fork()) == 0) {
         while (1) {
             // Повар спит, пока не проснется первый дикарь
-            sleep(5);
+            pause();
             cook_missionaries();
         }
     } else if (pid < 0) {
@@ -49,7 +50,7 @@ int main() {
                     printf("Дикарь %d будит повара\n", i);
                     // Будим повара и ждем, пока он приготовит обед
                     kill(getppid(), SIGUSR1);
-                    sleep(5);
+                    pause();
                 }
             }
         } else if (pid < 0) {
