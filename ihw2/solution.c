@@ -1,99 +1,84 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <unistd.h>
-#include <pthread.h>
+#include <sys/wait.h>
 #include <semaphore.h>
 
-// Number of savages
-#define NUM_SAVAGES 5
+sem_t pot_sem; // Semaphore for access to the pot
+sem_t cook_sem; // Semaphore for controlling the cook
+int remaining_pieces = 0; // Number of remaining pieces of stewed missionary
 
-// Capacity of the pot
-#define POT_CAPACITY 10
-
-// Semaphore to protect the pot
-sem_t pot_mutex;
-
-// Semaphore to signal the cook that the pot is empty
-sem_t pot_empty;
-
-// Semaphore to signal the savages that the pot is full
-sem_t pot_full;
-
-// Function for the cook thread
-void *cook(void *arg) {
-    while (1) {
-        // Wait for the pot to be empty
-        sem_wait(&pot_empty);
-
-        // Fill the pot
-        printf("Cook: Filling the potn");
-        sleep(1);
-
-        // Signal the savages that the pot is full
-        sem_post(&pot_full);
-    }
-
-    return NULL;
+void cook(int M) {
+    printf("Cook starts preparing lunch.\n");
+    remaining_pieces = M;
+    printf("Cook prepared %d pieces of stewed missionary.\n", remaining_pieces);
+    sem_post(&pot_sem); // Release the semaphore so the tribesmen can start eating
 }
 
-// Function for the savage thread
-void *savage(void *arg) {
-    int savage_id = (int) arg;
-
-    while (1) {
-        // Wait for the pot to be full
-        sem_wait(&pot_full);
-
-        // Enter the critical section
-        sem_wait(&pot_mutex);
-
-        // Check if the pot is empty
-        if (POT_CAPACITY == 0) {
-            // Wake up the cook
-            sem_post(&pot_empty);
-
-            // Wait for the pot to be full again
-            sem_wait(&pot_full);
-        }
-
-        // Eat from the pot
-        POT_CAPACITY--;
-        printf("Savage %d: Eatingn", savage_id);
-        sleep(1);
-
-        // Leave the critical section
-        sem_post(&pot_mutex);
+void eat(int id) {
+    printf("Tribesman %d is hungry and wants to have lunch.\n", id);
+    sem_wait(&pot_sem); // Wait for access to the pot
+    if (remaining_pieces > 0) {
+        printf("Tribesman %d took a piece of stewed missionary from the pot.\n", id);
+        remaining_pieces--;
+    } else {
+        printf("The pot is empty, tribesman %d wakes up the cook.\n", id);
+        sem_post(&cook_sem); // Tribesman wakes up the cook
+        sem_wait(&pot_sem); // Wait until the cook fills the pot
+        printf("Tribesman %d took a piece of stewed missionary from the pot.\n", id);
+        remaining_pieces--;
     }
+    printf("Tribesman %d had lunch.\n", id);
+}
 
-    return NULL;
+void cook_process(int M) {
+    while (1) {
+        sem_wait(&cook_sem); // Wait until a tribesman wakes up the cook
+        cook(M);
+    }
+}
+
+void eat_process(int id, int N) {
+    while (1) {
+        eat(id);
+        usleep(rand() % 1000000); // Tribesman will be hungry for a random time before the next meal
+    }
 }
 
 int main() {
-    // Initialize the semaphores
-    sem_init(&pot_mutex, 0, 1);
-    sem_init(&pot_empty, 0, 0);
-    sem_init(&pot_full, 0, 0);
+    int N, M;
 
-    // Create the cook thread
-    pthread_t cook_thread;
-    pthread_create(&cook_thread, NULL, cook, NULL);
+    printf("Enter the number of tribesmen (N): ");
+    scanf("%d", &N);
 
-    // Create the savage threads
-    pthread_t savage_threads[NUM_SAVAGES];
-    for (int i = 0; i < NUM_SAVAGES; i++) {
-        pthread_create(&savage_threads[i], NULL, savage, (void *) i);
+    printf("Enter the number of pieces of stewed missionary (M): ");
+    scanf("%d", &M);
+
+    sem_init(&pot_sem, 0, 1); // Semaphore initialization
+    sem_init(&cook_sem, 0, 0);
+
+    pid_t pid;
+    for (int i = 0; i < N; i++) {
+        pid = fork();
+        if (pid == 0) { // Child process
+            eat_process(i+1, N);
+            exit(0);
+        }
     }
 
-    // Join the threads
-    pthread_join(cook_thread, NULL);
-    for (int i = 0; i < NUM_SAVAGES; i++) {
-        pthread_join(savage_threads[i], NULL);
+    pid = fork();
+    if (pid == 0) { // Child process
+        cook_process(M);
+        exit(0);
     }
 
-    // Destroy the semaphores
-    sem_destroy(&pot_mutex);
-    sem_destroy(&pot_empty);
-    sem_destroy(&pot_full);
+    // Parent process waits for all child processes to finish
+    for (int i = 0; i < N + 1; i++) {
+        wait(NULL);
+    }
+
+    sem_destroy(&pot_sem); // Semaphore destruction
+    sem_destroy(&cook_sem);
 
     return 0;
 }
