@@ -1,55 +1,45 @@
 #include <stdio.h>
 #include <stdlib.h>
-#include <sys/socket.h>
-#include <sys/types.h>
-#include <netinet/in.h>
-#include <arpa/inet.h>
 #include <string.h>
+#include <unistd.h>
+#include <arpa/inet.h>
 
-int main(int argc, char *argv[]) {
-    if (argc != 3) {
-        fprintf(stderr, "Usage: %s <serverip> <serverport>\n", argv[0]);
-        exit(1);
-    }
+#define PORT 8080
 
-    // Создать сокет клиента
-    int clientsock = socket(AF_INET, SOCK_STREAM, 0);
-    if (clientsock == -1) {
-        perror("socket");
-        exit(1);
-    }
-
-    // Настроить адрес и порт сервера
-    struct sockaddr_in serveraddr;
-    serveraddr.sin_family = AF_INET;
-    serveraddr.sin_addr.s_addr = inet_addr(argv[1]);
-    serveraddr.sin_port = htons(atoi(argv[2]));
-
-    // Установить соединение с сервером
-    if (connect(clientsock, (struct sockaddr *)&serveraddr, sizeof(serveraddr)) == -1) {
-        perror("connect");
-        exit(1);
-    }
-
-    // Читать сообщения от сервера и выводить их на консоль
+int main() {
+    int sock = 0;
+    struct sockaddr_in serv_addr;
+    char *end_message = "The End";
     char buffer[1024];
-    while (1) {
-        // Читать сообщение от сервера
-        int n = recv(clientsock, buffer, sizeof(buffer), 0);
-        if (n == -1) {
-            perror("recv");
-            exit(1);
-        }
 
-        if (strcmp(buffer, "The End") == 0) {
-            // Получили сообщение "The End" - завершаем работу
-            close(clientsock);
-            exit(0);
-        }
-
-        // Вывести сообщение на консоль
-        printf("Получено сообщение: %s", buffer);
+    if ((sock = socket(AF_INET, SOCK_STREAM, 0)) < 0) {
+        printf("\n Socket creation error \n");
+        return -1;
     }
 
+    serv_addr.sin_family = AF_INET;
+    serv_addr.sin_port = htons(PORT);
+
+    if (inet_pton(AF_INET, "127.0.0.1", &serv_addr.sin_addr) <= 0) {
+        printf("\nInvalid address/ Address not supported \n");
+        return -1;
+    }
+
+    if (connect(sock, (struct sockaddr *)&serv_addr, sizeof(serv_addr)) < 0) {
+        printf("\nConnection Failed \n");
+        return -1;
+    }
+
+    while (1) {
+        read(sock, buffer, 1024);
+        printf("Client 2: %s\n", buffer);
+
+        if (strcmp(buffer, end_message) == 0) {
+            printf("End of communication\n");
+            break;
+        }
+    }
+
+    close(sock);
     return 0;
 }
