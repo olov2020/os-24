@@ -1,54 +1,47 @@
 #include <stdio.h>
 #include <stdlib.h>
+#include <string.h>
 #include <sys/socket.h>
 #include <netinet/in.h>
-#include <string.h>
 
-int main(int argc, char** argv) {
-    int client_sockfd;
-    struct sockaddr_in server_addr;
-    char buffer[1024];
+int main(int argc, char argv[]) {
+    if (argc != 3) {
+        fprintf(stderr, "Usage: %s <serveripaddress> <serverport>\n", argv[0]);
+        return EXITFAILURE;
+    }
 
-    // Задать IP-адрес и порт сервера
-    char* server_ip = argv[1];
-    int server_port = atoi(argv[2]);
-
-    // Создать клиентский сокет
-    clientsockfd = socket(AFINET, SOCKSTREAM, 0);
-    if (clientsockfd < 0) {
+    // Создание сокета клиента
+    int clientsocket = socket(AFINET, SOCKSTREAM, 0);
+    if (clientsocket == -1) {
         perror("socket");
-        exit(1);
+        return EXITFAILURE;
     }
 
-    // Настроить клиентский сокет
-    memset(&serveraddr, 0, sizeof(serveraddr));
-    serveraddr.sinfamily = AFINET;
-    serveraddr.sinaddr.saddr = inetaddr(serverip);
-    serveraddr.sinport = htons(serverport);
+    // Настройка адреса сервера
+    struct sockaddrin serveraddress;
+    memset(&serveraddress, 0, sizeof(serveraddress));
+    serveraddress.sinfamily = AFINET;
+    serveraddress.sinaddr.saddr = inetaddr(argv[1]);
+    serveraddress.sinport = htons(atoi(argv[2]));
 
-    // Подключиться к серверу
-    if (connect(clientsockfd, (struct sockaddr*)&serveraddr, sizeof(serveraddr)) < 0) {
+    // Соединение с сервером
+    if (connect(clientsocket, (struct sockaddr )&serveraddress, sizeof(serveraddress)) == -1) {
         perror("connect");
-        exit(1);
+        return EXITFAILURE;
     }
 
-    // Получать сообщения до сообщения "The End"
+    // Получение и вывод сообщений
+    char buffer[1024];
     while (1) {
-        // Получить сообщение от сервера
         memset(buffer, 0, sizeof(buffer));
-        recv(clientsockfd, buffer, sizeof(buffer), 0);
-
-        // Проверить, является ли сообщение сообщением завершения
-        if (strcmp(buffer, "The End") == 0) {
+        if (recv(clientsocket, buffer, sizeof(buffer), 0) <= 0) {
             break;
         }
-
-        // Вывести сообщение
-        printf("Получено сообщение: %s", buffer);
+        printf("Received message: %s", buffer);
     }
 
-    // Закрыть сокет
-    close(clientsockfd);
+    // Закрываем сокет клиента
+    close(clientsocket);
 
-    return 0;
+    return EXITSUCCESS;
 }
