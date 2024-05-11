@@ -1,54 +1,49 @@
 #include <stdio.h>
 #include <stdlib.h>
+#include <string.h>
 #include <sys/socket.h>
 #include <netinet/in.h>
-#include <string.h>
 
-int main(int argc, char** argv) {
-    int client_sockfd;
-    struct sockaddr_in server_addr;
-    char buffer[1024];
+int main(int argc, char *argv[]) {
+    if (argc != 3) {
+        fprintf(stderr, "Usage: %s <server_ip_address> <server_port>\n", argv[0]);
+        return EXIT_FAILURE;
+    }
 
-    // Задать IP-адрес и порт сервера
-    char* server_ip = argv[1];
-    int server_port = atoi(argv[2]);
-
-    // Создать клиентский сокет
-    client_sockfd = socket(AF_INET, SOCK_STREAM, 0);
-    if (client_sockfd < 0) {
+    // Создание сокета клиента
+    int client_socket = socket(AF_INET, SOCK_STREAM, 0);
+    if (client_socket == -1) {
         perror("socket");
-        exit(1);
+        return EXIT_FAILURE;
     }
 
-    // Настроить клиентский сокет
-    memset(&server_addr, 0, sizeof(server_addr));
-    server_addr.sin_family = AF_INET;
-    server_addr.sin_addr.s_addr = inet_addr(server_ip);
-    server_addr.sin_port = htons(server_port);
+    // Настройка адреса сервера
+    struct sockaddr_in server_address;
+    memset(&server_address, 0, sizeof(server_address));
+    server_address.sin_family = AF_INET;
+    server_address.sin_addr.s_addr = inet_addr(argv[1]);
+    server_address.sin_port = htons(atoi(argv[2]));
 
-    // Подключиться к серверу
-    if (connect(client_sockfd, (struct sockaddr*)&server_addr, sizeof(server_addr)) < 0) {
+    // Соединение с сервером
+    if (connect(client_socket, (struct sockaddr *)&server_address, sizeof(server_address)) == -1) {
         perror("connect");
-        exit(1);
+        return EXIT_FAILURE;
     }
 
-    // Отправлять сообщения до сообщения "The End"
+    // Ввод сообщений
+    char buffer[1024];
     while (1) {
-        // Получить сообщение из стандартного ввода
-        memset(buffer, 0, sizeof(buffer));
+        printf("Enter message (The End to quit): ");
         fgets(buffer, sizeof(buffer), stdin);
 
-        // Проверить, является ли сообщение сообщением завершения
-        if (strcmp(buffer, "The End") == 0) {
+        // Отправка сообщения серверу
+        if (strcmp(buffer, "The End\n") == 0) {
             break;
         }
-
-        // Отправить сообщение серверу
-        send(client_sockfd, buffer, strlen(buffer), 0);
+        send(client_socket, buffer, strlen(buffer), 0);
     }
 
-    // Закрыть сокет
-    close(client_sockfd);
-
-    return 0;
+    // Закрываем сокет клиента
+    close(client_socket);
+    return EXITSUCCESS;
 }
