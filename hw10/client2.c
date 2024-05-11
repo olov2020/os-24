@@ -32,7 +32,17 @@ int main() {
 
     while (1) {
         read(sock, buffer, 1024);
-        printf("Client 2: %s\n", buffer);
+
+        if (strcmp(buffer, end_message) == 0) {
+            printf("End of communication\n");
+            break;
+        }
+
+        printf("Client 1: %s\n", buffer);
+
+        printf("Enter message for Client 1: ");
+        fgets(buffer, 1024, stdin);
+        send(sock, buffer, strlen(buffer), 0);
 
         if (strcmp(buffer, end_message) == 0) {
             printf("End of communication\n");
