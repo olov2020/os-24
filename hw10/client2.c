@@ -10,7 +10,7 @@ int main() {
     int sock = 0;
     struct sockaddr_in serv_addr;
     char *end_message = "The End";
-    char message[1024];
+    char buffer[1024];
 
     if ((sock = socket(AF_INET, SOCK_STREAM, 0)) < 0) {
         printf("\n Socket creation error \n");
@@ -31,11 +31,10 @@ int main() {
     }
 
     while (1) {
-        printf("Enter message for Client 2: ");
-        fgets(message, 1024, stdin);
-        send(sock, message, strlen(message), 0);
+        read(sock, buffer, 1024);
+        printf("Client 2: %s\n", buffer);
 
-        if (strcmp(message, end_message) == 0) {
+        if (strcmp(buffer, end_message) == 0) {
             printf("End of communication\n");
             break;
         }
