@@ -13,7 +13,7 @@ int main() {
     char message[1024];
 
     if ((sock = socket(AF_INET, SOCK_STREAM, 0)) < 0) {
-        perror("socket");
+        printf("\n Socket creation error \n");
         return -1;
     }
 
@@ -21,12 +21,12 @@ int main() {
     serv_addr.sin_port = htons(PORT);
 
     if (inet_pton(AF_INET, "127.0.0.1", &serv_addr.sin_addr) <= 0) {
-        perror("inet_pton");
+        printf("\nInvalid address/ Address not supported \n");
         return -1;
     }
 
     if (connect(sock, (struct sockaddr *)&serv_addr, sizeof(serv_addr)) < 0) {
-        perror("connect");
+        printf("\nConnection Failed \n");
         return -1;
     }
 
