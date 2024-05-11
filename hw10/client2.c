@@ -10,7 +10,7 @@ int main() {
     int sock = 0;
     struct sockaddr_in serv_addr;
     char *end_message = "The End";
-    char buffer[1024];
+    char buffer[1024] = {0};  // Initialize buffer to all zeros
 
     if ((sock = socket(AF_INET, SOCK_STREAM, 0)) < 0) {
         printf("\n Socket creation error \n");
