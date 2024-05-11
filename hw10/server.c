@@ -1,80 +1,83 @@
 #include <stdio.h>
 #include <stdlib.h>
-#include <string.h>
 #include <sys/socket.h>
+#include <sys/types.h>
 #include <netinet/in.h>
 #include <arpa/inet.h>
+#include <string.h>
 
-#define PORT 8080
-
-int main(int argc, char** argv) {
+int main(int argc, char *argv[]) {
     if (argc != 3) {
-        printf("Usage: %s <server IP> <server port>n", argv[0]);
-        return 1;
+        fprintf(stderr, "Usage: %s <server_ip> <server_port>\n", argv[0]);
+        exit(1);
     }
 
-    int server_sock, client_sock;
-    struct sockaddr_in server_addr, client_addr;
-    socklen_t client_addr_len;
-    char buffer[1024];
-
-    // Создание сокета сервера
-    server_sock = socket(AF_INET, SOCK_STREAM, 0);
-    if (server_sock < 0) {
+    // Создать сокет сервера
+    int server_sock = socket(AF_INET, SOCK_STREAM, 0);
+    if (server_sock == -1) {
         perror("socket");
-        return 1;
+        exit(1);
     }
 
-    // Настройка адреса и порта сервера
+    // Настроить адрес и порт сервера
+    struct sockaddr_in server_addr;
     server_addr.sin_family = AF_INET;
     server_addr.sin_addr.s_addr = inet_addr(argv[1]);
     server_addr.sin_port = htons(atoi(argv[2]));
 
-    // Привязка сокета к адресу и порту
-    if (bind(server_sock, (struct sockaddr*)&server_addr, sizeof(server_addr)) < 0) {
+    // Привязать сокет к адресу и порту
+    if (bind(server_sock, (struct sockaddr *)&server_addr, sizeof(server_addr)) == -1) {
         perror("bind");
-        return 1;
+        exit(1);
     }
 
-    // Прослушивание сокета
-    if (listen(server_sock, 5) < 0) {
+    // Слушать подключения клиентов
+    if (listen(server_sock, 2) == -1) {
         perror("listen");
-        return 1;
+        exit(1);
     }
 
-    // Бесконечный цикл для обработки клиентов
+    // Принять подключения от клиентов
+    int client1_sock, client2_sock;
+    struct sockaddr_in client1_addr, client2_addr;
+    socklen_t client1_addr_len, client2_addr_len;
+
+    client1_sock = accept(server_sock, (struct sockaddr *)&client1_addr, &client1_addr_len);
+    if (client1_sock == -1) {
+        perror("accept");
+        exit(1);
+    }
+
+    client2_sock = accept(server_sock, (struct sockaddr *)&client2_addr, &client2_addr_len);
+    if (client2_sock == -1) {
+        perror("accept");
+        exit(1);
+    }
+
+    // Читать сообщения от клиента №1 и перенаправлять их клиенту №2
+    char buffer[1024];
     while (1) {
-        // Принятие соединения от клиента
-        client_addr_len = sizeof(client_addr);
-        client_sock = accept(server_sock, (struct sockaddr*)&client_addr, &client_addr_len);
-        if (client_sock < 0) {
-            perror("accept");
-            continue;
-        }
-
-        // Чтение сообщения от клиента
-        ssize_t bytes_received = recv(client_sock, buffer, sizeof(buffer), 0);
-        if (bytes_received < 0) {
+        // Читать сообщение от клиента №1
+        int n = recv(client1_sock, buffer, sizeof(buffer), 0);
+        if (n == -1) {
             perror("recv");
-            close(client_sock);
-            continue;
+            exit(1);
         }
 
-        // Проверка сообщения на завершение работы
         if (strcmp(buffer, "The End") == 0) {
-            printf("Received "The End" from client %s:%dn", inet_ntoa(client_addr.sin_addr), ntohs(client_addr.sin_port));
-            break;
+            // Получили сообщение "The End" - завершаем работу
+            close(client1_sock);
+            close(client2_sock);
+            close(server_sock);
+            exit(0);
         }
 
-        // Пересылка сообщения клиенту №2
-        // ... (код для подключения к клиенту №2 и отправки сообщения)
-
-        // Закрытие сокета клиента
-        close(client_sock);
+        // Перенаправить сообщение клиенту №2
+        if (send(client2_sock, buffer, n, 0) == -1) {
+            perror("send");
+            exit(1);
+        }
     }
-
-    // Закрытие сокета сервера
-    close(server_sock);
 
     return 0;
 }
