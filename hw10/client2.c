@@ -29,7 +29,7 @@ int main() {
     }
 
     //Установление соединения с сервером
-    if (connect(sock, (struct sockaddr *)&servaddr, sizeof(servaddr)) < 0) {
+    if (connect(sock, (struct sockaddr *)&serv_addr, sizeof(serv_addr)) < 0) {
         printf("\nConnection Failed \n");
         return -1;
     }
