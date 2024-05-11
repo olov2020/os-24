@@ -8,22 +8,22 @@
 
 int main(int argc, char *argv[]) {
     if (argc != 3) {
-        fprintf(stderr,"Usage: %s <serverip> <serverport>\n", argv[0]);
+        fprintf(stderr, "Usage: %s <serverip> <serverport>\n", argv[0]);
         exit(1);
     }
 
     // Создать сокет клиента
-    int clientsock = socket(AFINET, SOCKSTREAM, 0);
+    int clientsock = socket(AF_INET, SOCK_STREAM, 0);
     if (clientsock == -1) {
         perror("socket");
         exit(1);
     }
 
     // Настроить адрес и порт сервера
-    struct sockaddrin serveraddr;
-    serveraddr.sinfamily = AFINET;
-    serveraddr.sinaddr.saddr = inetaddr(argv[1]);
-    serveraddr.sinport = htons(atoi(argv[2]));
+    struct sockaddr_in serveraddr;
+    serveraddr.sin_family = AF_INET;
+    serveraddr.sin_addr.s_addr = inet_addr(argv[1]);
+    serveraddr.sin_port = htons(atoi(argv[2]));
 
     // Установить соединение с сервером
     if (connect(clientsock, (struct sockaddr *)&serveraddr, sizeof(serveraddr)) == -1) {
