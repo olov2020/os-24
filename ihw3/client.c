@@ -9,7 +9,6 @@ int main() {
     struct sockaddr_in serv_addr;
     
     int client_fd;
-    int meat_left;
 
     if ((client_fd = socket(AF_INET, SOCK_STREAM, 0)) < 0) {
         perror("Socket creation failed");
@@ -24,18 +23,21 @@ int main() {
         exit(EXIT_FAILURE);
     }
     
+    printf("Дикарь присоединился к обеду\n");
+
     // Логика клиента (дикаря)
-    while(1) {
-        recv(client_fd, &meat_left, sizeof(meat_left), 0);
-        
-        if (meat_left <= 0) {
-            printf("Дикарь ждет, пока повар приготовит еду\n");
-        } else {
-            printf("Дикарь пообедал. Осталось %d кусков мяса\n", meat_left);
-        }
-        
-        sleep(1); // Задержка перед следующим запросом на кусок мяса
-    }
+    char buffer[1024] = {0};
+    int valread;
+
+    // Отправляем запрос на сервер
+    send(client_fd, "Запрос: Хочу съесть кусок миссионера", 35, 0);
+    
+    // Получаем ответ от сервера
+    valread = read(client_fd, buffer, 1024);
+    printf("Ответ от повара: %s\n", buffer);
+
+    // Закрытие клиентского сокета
+    close(client_fd);
 
     return 0;
 }
