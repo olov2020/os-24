@@ -1,45 +1,42 @@
 #include <stdio.h>
 #include <stdlib.h>
+#include <unistd.h>
+#include <sys/types.h>
 #include <sys/socket.h>
 #include <netinet/in.h>
-#include <arpa/inet.h>
+#include <netdb.h>
+#include <string.h>
 
 int main() {
-    char server_ip[256];
-
-    // Ввести IP-адрес сервера
-    printf("Введите IP-адрес сервера: ");
-    scanf("%s", server_ip);
-
-    // Создать сокет
-    int sockfd = socket(AF_INET, SOCK_STREAM, 0);
-    if (sockfd < 0) {
-        perror("socket");
-        exit(EXIT_FAILURE);
-    }
-
-    // Подключиться к серверу
     struct sockaddr_in serv_addr;
-    serv_addr.sin_family = AF_INET;
-    serv_addr.sin_port = htons(5000);
-    serv_addr.sin_addr.s_addr = inet_addr(server_ip);
-    if (connect(sockfd, (struct sockaddr *)&serv_addr, sizeof(serv_addr)) < 0) {
-        perror("connect");
+    int client_fd;
+    char *request = "Дикарь: Я хочу съесть миссионера";
+
+    if ((client_fd = socket(AF_INET, SOCK_STREAM, 0)) < 0) {
+        perror("Socket creation failed");
         exit(EXIT_FAILURE);
     }
 
-    while (1) {
-        // Ждать сообщения от повара о том, что горшок полон
-        char msg[256];
-        recv(sockfd, msg, sizeof(msg), 0);
+    serv_addr.sin_family = AF_INET;
+    serv_addr.sin_port = htons(8080);
 
-        // Если горшок полон, есть один кусок мяса
-        if (strcmp(msg, "Горшок полон") == 0) {
-            printf("Дикарь поелn");
-        }
+    if (inet_pton(AF_INET, "127.0.0.1", &serv_addr.sin_addr) <= 0) {
+        perror("Invalid address/ Address not supported");
+        exit(EXIT_FAILURE);
     }
 
-    close(sockfd);
+    if (connect(client_fd, (struct sockaddr *)&serv_addr, sizeof(serv_addr)) < 0) {
+        perror("Connection failed");
+        exit(EXIT_FAILURE);
+    }
+
+    send(client_fd, request, strlen(request), 0);
+
+    char buffer[1024] = {0};
+    read(client_fd, buffer, 1024);
+    printf("%s\n", buffer);
+
+    close(client_fd);
 
     return 0;
 }
