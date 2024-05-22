@@ -5,12 +5,14 @@
 #include <sys/socket.h>
 #include <netinet/in.h>
 
+#define MAX_CLIENTS 5 // Максимальное количество дикарей
+
 int main() {
     int server_fd, new_socket;
     struct sockaddr_in address;
     int addrlen = sizeof(address);
     int opt = 1;
-    int meat_left = 0; // Количество кусков мяса в горшке
+    int clients_count = 0;
 
     // Создание сокета
     if ((server_fd = socket(AF_INET, SOCK_STREAM, 0)) == 0) {
@@ -40,27 +42,19 @@ int main() {
         exit(EXIT_FAILURE);
     }
 
-    // Принятие нового соединения
-    if ((new_socket = accept(server_fd, (struct sockaddr *)&address, (socklen_t*)&addrlen)) < 0) {
-        perror("Accept failed");
-        exit(EXIT_FAILURE);
-    }
-
-    // Логика обслуживания клиентов (дикарей)
-    while(1) {
-        if (meat_left == 0) {
-            // Повар ждет, пока его не разбудят
-            sleep(5); // Время на приготовление еды
-            meat_left = 10; // Повар наполняет горшок
-            printf("Повар наполнил горшок\n");
+    // Принятие новых соединений
+    while(clients_count < MAX_CLIENTS) {
+        if ((new_socket = accept(server_fd, (struct sockaddr *)&address, (socklen_t*)&addrlen)) < 0) {
+            perror("Accept failed");
+            exit(EXIT_FAILURE);
         }
         
-        // Отправка количества кусков мяса клиенту
-        send(new_socket, &meat_left, sizeof(meat_left), 0);
-        
-        meat_left--; // Дикарь съел один кусок мяса
-        printf("Дикарь пообедал. Осталось %d кусков мяса\n", meat_left);
+        clients_count++;
+        printf("Дикарь %d присоединился\n", clients_count);
     }
+
+    // Закрытие серверного сокета
+    close(server_fd);
 
     return 0;
 }
