@@ -53,15 +53,14 @@ void *savage(void *arg) {
     return NULL;
 }
 
-int main(int argc, char *argv[]) {
-    if (argc != 2) {
-        fprintf(stderr, "Usage: %s <number_of_savages>\n", argv[0]);
-        exit(EXIT_FAILURE);
-    }
+int main() {
+    int num_savages;
 
-    int num_savages = atoi(argv[1]);
+    // Ввести количество дикарей
+    printf("Введите количество дикарей (не более %d): ", MAX_SAVAGES);
+    scanf("%d", &num_savages);
     if (num_savages > MAX_SAVAGES) {
-        fprintf(stderr, "Error: number of savages cannot exceed %d\n", MAX_SAVAGES);
+        fprintf(stderr, "Error: number of savages cannot exceed %dn", MAX_SAVAGES);
         exit(EXIT_FAILURE);
     }
 
@@ -130,7 +129,7 @@ int main(int argc, char *argv[]) {
         }
 
         // Снова заснуть
-        printf("Повар сварил обед\n");
+        printf("Повар сварил обедn");
         sleep(1);
     }
 
@@ -143,6 +142,7 @@ int main(int argc, char *argv[]) {
     sem_destroy(&pot_mutex);
     sem_destroy(&pot_empty);
     sem_destroy(&pot_full);
+
     // Закрыть сокет
     close(sockfd);
 
