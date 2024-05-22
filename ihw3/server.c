@@ -4,15 +4,16 @@
 #include <sys/types.h>
 #include <sys/socket.h>
 #include <netinet/in.h>
-
-#define MAX_CLIENTS 5 // Максимальное количество дикарей
+#include <string.h>
 
 int main() {
-    int server_fd, new_socket;
-    struct sockaddr_in address;
-    int addrlen = sizeof(address);
+    struct sockaddr_in serv_addr, cli_addr;
+    int server_fd, client_fd;
     int opt = 1;
-    int clients_count = 0;
+    int addrlen = sizeof(serv_addr);
+
+    char buffer[1024] = {0};
+    char *response = "Ответ: Повар дал кусок миссионера";
 
     // Создание сокета
     if ((server_fd = socket(AF_INET, SOCK_STREAM, 0)) == 0) {
@@ -20,18 +21,18 @@ int main() {
         exit(EXIT_FAILURE);
     }
 
-    // Установка параметров сокета
+    // Установка опции переиспользования порта
     if (setsockopt(server_fd, SOL_SOCKET, SO_REUSEADDR | SO_REUSEPORT, &opt, sizeof(opt))) {
         perror("Setsockopt failed");
         exit(EXIT_FAILURE);
     }
 
-    address.sin_family = AF_INET;
-    address.sin_addr.s_addr = INADDR_ANY;
-    address.sin_port = htons(8080);
+    serv_addr.sin_family = AF_INET;
+    serv_addr.sin_addr.s_addr = INADDR_ANY;
+    serv_addr.sin_port = htons(8080);
 
-    // Привязка адреса и порта к сокету
-    if (bind(server_fd, (struct sockaddr *)&address, sizeof(address)) < 0) {
+    // Привязка сокета к адресу и порту
+    if (bind(server_fd, (struct sockaddr *)&serv_addr, sizeof(serv_addr)) < 0) {
         perror("Bind failed");
         exit(EXIT_FAILURE);
     }
@@ -42,18 +43,23 @@ int main() {
         exit(EXIT_FAILURE);
     }
 
-    // Принятие новых соединений
-    while(clients_count < MAX_CLIENTS) {
-        if ((new_socket = accept(server_fd, (struct sockaddr *)&address, (socklen_t*)&addrlen)) < 0) {
-            perror("Accept failed");
-            exit(EXIT_FAILURE);
-        }
-        
-        clients_count++;
-        printf("Дикарь %d присоединился\n", clients_count);
+    // Принятие входящих подключений
+    if ((client_fd = accept(server_fd, (struct sockaddr *)&cli_addr, (socklen_t*)&addrlen)) < 0) {
+        perror("Accept failed");
+        exit(EXIT_FAILURE);
     }
 
-    // Закрытие серверного сокета
+    printf("Повар принял заказ\n");
+
+    // Получение запроса от клиента
+    read(client_fd, buffer, 1024);
+    printf("Запрос от дикаря: %s\n", buffer);
+
+    // Отправка ответа клиенту
+    send(client_fd, response, strlen(response), 0);
+
+    // Закрытие сокетов
+    close(client_fd);
     close(server_fd);
 
     return 0;
