@@ -6,6 +6,7 @@
 #include <netinet/in.h>
 #include <netdb.h>
 #include <string.h>
+#include <arpa/inet.h>
 
 int main() {
     struct sockaddr_in serv_addr;
