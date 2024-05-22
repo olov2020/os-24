@@ -3,6 +3,7 @@
 #include <QPushButton>
 #include <QTcpSocket>
 #include <QTextEdit>
+#include <QVBoxLayout> // Добавлен заголовок
 
 class ClientApp : public QWidget
 {
@@ -39,14 +40,15 @@ private slots:
 
     void sendRequest()
     {
-        QString request = "Дикарь: Я хочу съесть миссионера";
+        QString request = "Дикарь: Я хочу съесть миссионера\n"; // Добавлен символ новой строки
         tcpSocket->write(request.toUtf8());
     }
 
     void readData()
     {
         QByteArray data = tcpSocket->readAll();
-        textEdit->append(data);
+        QString dataStr = QString::fromUtf8(data); // Преобразование данных в строку
+        textEdit->append(dataStr);
     }
 
 private:
