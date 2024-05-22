@@ -1,43 +1,56 @@
 #include <stdio.h>
 #include <stdlib.h>
+#include <string.h>
 #include <unistd.h>
-#include <sys/types.h>
 #include <sys/socket.h>
 #include <netinet/in.h>
-#include <netdb.h>
-#include <string.h>
-#include <arpa/inet.h>
+
+#define SERVER_HOST "127.0.0.1"
+#define SERVER_PORT 8080
 
 int main() {
-    struct sockaddr_in serv_addr;
-    int client_fd;
-    char *request = "Дикарь: Я хочу съесть миссионера";
+    int client_socket;
+    struct sockaddr_in server_address;
 
-    if ((client_fd = socket(AF_INET, SOCK_STREAM, 0)) < 0) {
-        perror("Socket creation failed");
-        exit(EXIT_FAILURE);
+    // Создание сокета
+    client_socket = socket(AF_INET, SOCK_STREAM, 0);
+    if (client_socket == -1) {
+        perror("Ошибка создания сокета");
+        exit(1);
     }
 
-    serv_addr.sin_family = AF_INET;
-    serv_addr.sin_port = htons(8080);
+    // Заполнение структуры адреса
+    memset(&server_address, 0, sizeof(server_address));
+    server_address.sin_family = AF_INET;
+    server_address.sin_addr.s_addr = inet_addr(SERVER_HOST);
+    server_address.sin_port = htons(SERVERPORT);
 
-    if (inet_pton(AF_INET, "127.0.0.1", &serv_addr.sin_addr) <= 0) {
-        perror("Invalid address/ Address not supported");
-        exit(EXIT_FAILURE);
+    // Подключение к серверу
+    if (connect(clientsocket, (struct sockaddr*)&serveraddress, sizeof(serveraddress)) == -1) {
+        perror("Ошибка подключения к серверу");
+        close(clientsocket);
+        exit(1);
     }
 
-    if (connect(client_fd, (struct sockaddr *)&serv_addr, sizeof(serv_addr)) < 0) {
-        perror("Connection failed");
-        exit(EXIT_FAILURE);
+    // Отправка запроса на сервер
+    char request[1024] = "Я голодный!";
+    send(clientsocket, request, strlen(request), 0);
+
+    // Прием ответа от сервера
+    char response[1024];
+    int bytesread = recv(clientsocket, response, sizeof(response), 0);
+    if (bytesread == -1) {
+        perror("Ошибка приема ответа");
+        close(clientsocket);
+        exit(1);
     }
+    response[bytesread] = '\0';
 
-    send(client_fd, request, strlen(request), 0);
+    // Вывод ответа
+    printf("Ответ сервера: %s\n", response);
 
-    char buffer[1024] = {0};
-    read(client_fd, buffer, 1024);
-    printf("%s\n", buffer);
-
-    close(client_fd);
+    // Закрытие клиентского сокета
+    close(clientsocket);
 
     return 0;
 }
