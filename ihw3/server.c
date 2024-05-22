@@ -10,6 +10,7 @@ int main() {
     struct sockaddr_in address;
     int addrlen = sizeof(address);
     int opt = 1;
+    int meat_left = 0; // Количество кусков мяса в горшке
 
     // Создание сокета
     if ((server_fd = socket(AF_INET, SOCK_STREAM, 0)) == 0) {
@@ -46,7 +47,20 @@ int main() {
     }
 
     // Логика обслуживания клиентов (дикарей)
-    // Реализуйте логику обеда здесь
+    while(1) {
+        if (meat_left == 0) {
+            // Повар ждет, пока его не разбудят
+            sleep(5); // Время на приготовление еды
+            meat_left = 10; // Повар наполняет горшок
+            printf("Повар наполнил горшок\n");
+        }
+        
+        // Отправка количества кусков мяса клиенту
+        send(new_socket, &meat_left, sizeof(meat_left), 0);
+        
+        meat_left--; // Дикарь съел один кусок мяса
+        printf("Дикарь пообедал. Осталось %d кусков мяса\n", meat_left);
+    }
 
     return 0;
 }
