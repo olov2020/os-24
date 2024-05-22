@@ -1,71 +1,95 @@
 #include <stdio.h>
 #include <stdlib.h>
+#include <string.h>
 #include <unistd.h>
-#include <sys/types.h>
 #include <sys/socket.h>
 #include <netinet/in.h>
-#include <string.h>
+
+#define PORT 8080
+#define MAX_CLIENTS 5
 
 int main() {
-    struct sockaddr_in serv_addr, cli_addr;
-    int server_fd, client_fd;
-    int opt = 1;
-    int addrlen = sizeof(serv_addr);
-    int max_clients = 5; // Максимальное количество дикарей
-
-    char buffer[1024] = {0};
-    char *response = "Ответ: Повар дал кусок миссионера";
+    int server_socket, client_socket;
+    struct sockaddr_in server_address, client_address;
+    socklen_t client_address_length;
+    int optval = 1;
+    int client_count = 0;
 
     // Создание сокета
-    if ((server_fd = socket(AF_INET, SOCK_STREAM, 0)) == 0) {
-        perror("Socket creation failed");
-        exit(EXIT_FAILURE);
+    server_socket = socket(AF_INET, SOCK_STREAM, 0);
+    if (server_socket == -1) {
+        perror("Ошибка создания сокета");
+        exit(1);
     }
 
-    // Установка опции переиспользования порта
-    if (setsockopt(server_fd, SOL_SOCKET, SO_REUSEADDR | SO_REUSEPORT, &opt, sizeof(opt))) {
-        perror("Setsockopt failed");
-        exit(EXIT_FAILURE);
+    // Настройка сокета
+    setsockopt(server_socket, SOL_SOCKET, SO_REUSEADDR, &optval, sizeof(optval));
+
+    // Заполнение структуры адреса
+    memset(&server_address, 0, sizeof(server_address));
+    server_address.sin_family = AF_INET;
+    server_address.sin_addr.s_addr = INADDR_ANY;
+    server_address.sin_port = htons(PORT);
+
+    // Привязка сокета к адресу
+    if (bind(server_socket, (struct sockaddr*)&server_address, sizeof(server_address)) == -1) {
+        perror("Ошибка привязки сокета");
+        close(server_socket);
+        exit(1);
     }
 
-    serv_addr.sin_family = AF_INET;
-    serv_addr.sin_addr.s_addr = INADDR_ANY;
-    serv_addr.sin_port = htons(8080);
-
-    // Привязка сокета к адресу и порту
-    if (bind(server_fd, (struct sockaddr *)&serv_addr, sizeof(serv_addr)) < 0) {
-        perror("Bind failed");
-        exit(EXIT_FAILURE);
+    // Прослушивание на сокете
+    if (listen(server_socket, 5) == -1) {
+        perror("Ошибка прослушивания на сокете");
+        close(server_socket);
+        exit(1);
     }
 
-    // Прослушивание подключений
-    if (listen(server_fd, max_clients) < 0) {
-        perror("Listen failed");
-        exit(EXIT_FAILURE);
-    }
+    printf("Сервер запущен на порту %d\n", PORT);
 
-    while(1) {
-        // Принятие входящих подключений
-        if ((client_fd = accept(server_fd, (struct sockaddr *)&cli_addr, (socklen_t*)&addrlen)) < 0) {
-            perror("Accept failed");
-            exit(EXIT_FAILURE);
+    // Прием клиентов
+    while (1) {
+        // Ожидание подключения
+        client_address_length = sizeof(client_address);
+        client_socket = accept(server_socket, (struct sockaddr*)&client_address, &client_address_length);
+        if (client_socket == -1) {
+            perror("Ошибка приема клиента");
+            continue;
         }
 
-        printf("Повар принял заказ\n");
+        // Проверка ограничения на количество клиентов
+        if (client_count >= MAX_CLIENTS) {
+            printf("Достигнут лимит клиентов.\n");
+            close(client_socket);
+            continue;
+        }
 
-        // Получение запроса от клиента
-        read(client_fd, buffer, 1024);
-        printf("Запрос от дикаря: %s\n", buffer);
+        // Прием запроса от клиента
+        char request[1024];
+        int bytes_read = recv(client_socket, request, sizeof(request), 0);
+        if (bytes_read == -1) {
+            perror("Ошибка приема запроса");
+            close(client_socket);
+            continue;
+        }
+        request[bytes_read] = '\0';
+
+        // Обработка запроса
+        printf("Дикарь %d: %s\n", client_count + 1, request);
 
         // Отправка ответа клиенту
-        send(client_fd, response, strlen(response), 0);
+        char response[1024] = "Привет, дикарь!\n";
+        send(client_socket, response, strlen(response), 0);
 
-        // Закрытие сокета клиента
-        close(client_fd);
+        // Закрытие соединения с клиентом
+        close(client_socket);
+
+        // Увеличение счетчика клиентов
+        client_count++;
     }
 
-    // Закрытие сокета сервера
-    close(server_fd);
+    // Закрытие серверного сокета
+    close(server_socket);
 
     return 0;
 }
