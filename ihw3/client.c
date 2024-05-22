@@ -4,11 +4,12 @@
 #include <netinet/in.h>
 #include <arpa/inet.h>
 
-int main(int argc, char *argv[]) {
-    if (argc != 2) {
-        fprintf(stderr, "Usage: %s <server_ip>\n", argv[0]);
-        exit(EXIT_FAILURE);
-    }
+int main() {
+    char server_ip[256];
+
+    // Ввести IP-адрес сервера
+    printf("Введите IP-адрес сервера: ");
+    scanf("%s", server_ip);
 
     // Создать сокет
     int sockfd = socket(AF_INET, SOCK_STREAM, 0);
@@ -21,7 +22,7 @@ int main(int argc, char *argv[]) {
     struct sockaddr_in serv_addr;
     serv_addr.sin_family = AF_INET;
     serv_addr.sin_port = htons(5000);
-    serv_addr.sin_addr.s_addr = inet_addr(argv[1]);
+    serv_addr.sin_addr.s_addr = inet_addr(server_ip);
     if (connect(sockfd, (struct sockaddr *)&serv_addr, sizeof(serv_addr)) < 0) {
         perror("connect");
         exit(EXIT_FAILURE);
@@ -34,7 +35,7 @@ int main(int argc, char *argv[]) {
 
         // Если горшок полон, есть один кусок мяса
         if (strcmp(msg, "Горшок полон") == 0) {
-            printf("Дикарь поел\n");
+            printf("Дикарь поелn");
         }
     }
 
