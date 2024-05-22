@@ -1,66 +1,150 @@
 #include <stdio.h>
 #include <stdlib.h>
-#include <unistd.h>
-#include <sys/types.h>
+#include <pthread.h>
+#include <semaphore.h>
 #include <sys/socket.h>
 #include <netinet/in.h>
-#include <string.h>
+#include <arpa/inet.h>
 
-int main() {
-    struct sockaddr_in serv_addr, cli_addr;
-    int server_fd, client_fd;
-    int opt = 1;
-    int addrlen = sizeof(serv_addr);
+// Максимальное количество дикарей
+#define MAX_SAVAGES 5
 
-    char buffer[1024] = {0};
-    char *response = "Ответ: Повар дал кусок миссионера";
+// Семафор, защищающий доступ к горшку
+sem_t pot_mutex;
+// Семафор, сигналящий о том, что горшок пуст
+sem_t pot_empty;
+// Семафор, сигналящий о том, что горшок полон
+sem_t pot_full;
 
-    // Создание сокета
-    if ((server_fd = socket(AF_INET, SOCK_STREAM, 0)) == 0) {
-        perror("Socket creation failed");
+// Общее количество кусков мяса в горшке
+int pot_count = 0;
+
+// Поток дикаря
+void *savage(void *arg) {
+    int savage_id = (int)arg;
+    int sockfd = *(int *)arg;
+
+    while (1) {
+        // Захватить семафор горшка
+        sem_wait(&pot_mutex);
+
+        // Если горшок пуст, разбудить повара
+        if (pot_count == 0) {
+            sem_post(&pot_empty);
+        }
+
+        // Есть один кусок мяса из горшка
+        pot_count--;
+
+        // Освободить семафор горшка
+        sem_post(&pot_mutex);
+
+        // Отправить сообщение повару о том, что дикарь поел
+        char msg[256];
+        sprintf(msg, "Дикарь %d поел", savage_id);
+        send(sockfd, msg, strlen(msg) + 1, 0);
+
+        // Подождать немного прежде, чем снова захотеть есть
+        sleep(1);
+    }
+
+    close(sockfd);
+
+    return NULL;
+}
+
+int main(int argc, char *argv[]) {
+    if (argc != 2) {
+        fprintf(stderr, "Usage: %s <number_of_savages>\n", argv[0]);
         exit(EXIT_FAILURE);
     }
 
-    // Установка опции переиспользования порта
-    if (setsockopt(server_fd, SOL_SOCKET, SO_REUSEADDR | SO_REUSEPORT, &opt, sizeof(opt))) {
-        perror("Setsockopt failed");
+    int num_savages = atoi(argv[1]);
+    if (num_savages > MAX_SAVAGES) {
+        fprintf(stderr, "Error: number of savages cannot exceed %d\n", MAX_SAVAGES);
         exit(EXIT_FAILURE);
     }
 
+    // Инициализировать семафоры
+    sem_init(&pot_mutex, 0, 1);
+    sem_init(&pot_empty, 0, 0);
+    sem_init(&pot_full, 0, 0);
+
+    // Создать сокет
+    int sockfd = socket(AF_INET, SOCK_STREAM, 0);
+    if (sockfd < 0) {
+        perror("socket");
+        exit(EXIT_FAILURE);
+    }
+
+    // Привязать сокет к адресу
+    struct sockaddr_in serv_addr;
     serv_addr.sin_family = AF_INET;
-    serv_addr.sin_addr.s_addr = INADDR_ANY;
-    serv_addr.sin_port = htons(8080);
-
-    // Привязка сокета к адресу и порту
-    if (bind(server_fd, (struct sockaddr *)&serv_addr, sizeof(serv_addr)) < 0) {
-        perror("Bind failed");
+    serv_addr.sin_port = htons(5000);
+    serv_addr.sin_addr.s_addr = inet_addr("127.0.0.1");
+    if (bind(sockfd, (struct sockaddr *)&serv_addr, sizeof(serv_addr)) < 0) {
+        perror("bind");
         exit(EXIT_FAILURE);
     }
 
-    // Прослушивание подключений
-    if (listen(server_fd, 3) < 0) {
-        perror("Listen failed");
+    // Начать прослушивание
+    if (listen(sockfd, num_savages) < 0) {
+        perror("listen");
         exit(EXIT_FAILURE);
     }
 
-    // Принятие входящих подключений
-    if ((client_fd = accept(server_fd, (struct sockaddr *)&cli_addr, (socklen_t*)&addrlen)) < 0) {
-        perror("Accept failed");
-        exit(EXIT_FAILURE);
+    // Создать потоки дикарей
+    pthread_t savage_threads[num_savages];
+    int savage_sockets[num_savages];
+    for (int i = 0; i < num_savages; i++) {
+        // Принять подключение от дикаря
+        int *savage_sockfd = malloc(sizeof(int));
+        *savage_sockfd = accept(sockfd, NULL, NULL);
+        if (*savage_sockfd < 0) {
+            perror("accept");
+            exit(EXIT_FAILURE);
+        }
+
+        savage_sockets[i] = *savage_sockfd;
+
+        // Создать поток для дикаря
+        pthread_create(&savage_threads[i], NULL, savage, (void *)savage_sockfd);
     }
 
-    printf("Повар принял заказ\n");
+    // Поток повара
+    while (1) {
+        // Ждать, пока дикарь не разбудит повара
+        sem_wait(&pot_empty);
 
-    // Получение запроса от клиента
-    read(client_fd, buffer, 1024);
-    printf("Запрос от дикаря: %s\n", buffer);
+        // Наполнить горшок
+        pot_count = 5;
 
-    // Отправка ответа клиенту
-    send(client_fd, response, strlen(response), 0);
+        // Сигнализировать о том, что горшок полон
+        sem_post(&pot_full);
 
-    // Закрытие сокетов
-    close(client_fd);
-    close(server_fd);
+        // Отправить сообщение всем дикарям о том, что горшок полон
+        char msg[256];
+        strcpy(msg, "Горшок полон");
+        for (int i = 0; i < num_savages; i++) {
+            send(savage_sockets[i], msg, strlen(msg) + 1, 0);
+        }
+
+        // Снова заснуть
+        printf("Повар сварил обед\n");
+        sleep(1);
+    }
+
+    // Присоединить все потоки
+    for (int i = 0; i < num_savages; i++) {
+        pthread_join(savage_threads[i], NULL);
+    }
+
+    // Уничтожить семафоры
+    sem_destroy(&pot_mutex);
+    sem_destroy(&pot_empty);
+    sem_destroy(&pot_full);
+    // Закрыть сокет
+    close(sockfd);
 
     return 0;
 }
